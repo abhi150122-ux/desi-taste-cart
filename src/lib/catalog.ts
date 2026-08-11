@@ -91,7 +91,7 @@ export type Product = {
   rating: number;
   reviewCount: number;
   tags: string[];
-  badge?: string;
+  badge?: string | undefined;
   bestseller: boolean;
   featured: boolean;
   brand: string;
