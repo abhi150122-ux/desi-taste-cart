@@ -58,12 +58,12 @@ export function HeroSlider() {
               loading={i === 0 ? "eager" : "lazy"}
               className="size-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/75 to-background/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
             <div className="absolute inset-0 flex items-center">
               <div className="max-w-xl px-6 sm:px-10 md:px-14">
-                <p className="text-xs font-semibold tracking-[0.18em] text-primary uppercase">{s.eyebrow}</p>
-                <h1 className="mt-2 text-2xl leading-tight font-bold sm:text-4xl md:text-5xl">{s.title}</h1>
-                <p className="mt-3 max-w-md text-sm text-muted-foreground sm:text-base">{s.text}</p>
+                <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">{s.eyebrow}</p>
+                <h1 className="mt-2 text-2xl leading-tight font-bold text-white sm:text-4xl md:text-5xl">{s.title}</h1>
+                <p className="mt-3 max-w-md text-sm text-white/80 sm:text-base">{s.text}</p>
                 <Link
                   to="/category/$slug"
                   params={{ slug: s.slug }}
