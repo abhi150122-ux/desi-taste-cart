@@ -56,7 +56,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-destructive">Error</p>
           <pre className="mt-2 whitespace-pre-wrap break-all text-xs text-foreground">
             {error.message}
-            {import.meta.env.DEV && error.stack ? `\n\n${error.stack}` : ""}
+            {error.stack ? `\n\n${error.stack}` : ""}
           </pre>
         </div>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
