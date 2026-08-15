@@ -3,15 +3,16 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "engines": {
-    "node": ">=20.19.0"
-  },
+ "engines": {
+  "node": ">=22.12.0"
+},
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "start": "node .output/server/index.mjs",
+    "build:node": "npx nitro build --preset node-server",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
@@ -86,6 +87,7 @@
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "wrangler": "^4.86.0"
   }
 }
