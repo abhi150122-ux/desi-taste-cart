@@ -4,15 +4,23 @@ import { Heart, Minus, Plus, ShieldCheck, Star, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { ProductSlider } from "@/components/product-slider";
-import { productBySlug, productsByCategory, sampleReviews, productById } from "@/lib/catalog";
+import { productBySlug, productsByCategory, sampleReviews, productByIdSync, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 import { useShop } from "@/context/shop";
 
 export const Route = createFileRoute("/product/$slug")({
-  loader: ({ params }) => {
-    const product = productBySlug(params.slug);
-    if (!product) throw notFound();
-    return { name: product.name, unit: product.unit, description: product.description };
+  loader: async ({ params }) => {
+    try {
+      const product = await productBySlug(params.slug);
+      if (!product) {
+        console.warn(`Product not found: ${params.slug}`);
+        throw notFound();
+      }
+      return { name: product.name, unit: product.unit, description: product.description };
+    } catch (error) {
+      console.error(`Error loading product ${params.slug}:`, error);
+      throw notFound();
+    }
   },
   head: ({ loaderData }) => {
     if (!loaderData)
@@ -34,22 +42,50 @@ export const Route = createFileRoute("/product/$slug")({
 
 function ProductPage() {
   const { slug } = Route.useParams();
-  const product = productBySlug(slug)!;
+  const [product, setProduct] = useState<Product | null>(null);
+  const [related, setRelated] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { addToCart, qtyOf, setQty, toggleWishlist, inWishlist, markViewed, recentlyViewed } = useShop();
   const [qty, setLocalQty] = useState(1);
-  const [activeImage, setActiveImage] = useState(0);
-  const inCart = qtyOf(product.id);
 
   useEffect(() => {
-    markViewed(product.id);
-    setLocalQty(1);
-    setActiveImage(0);
+    const loadProduct = async () => {
+      setIsLoading(true);
+      const prod = await productBySlug(slug);
+      setProduct(prod || null);
+      if (prod) {
+        const relatedProducts = await productsByCategory(prod.category);
+        setRelated(relatedProducts.filter((p) => p.slug !== slug).slice(0, 8));
+      }
+      setIsLoading(false);
+    };
+    loadProduct();
+  }, [slug]);
+
+  const [activeImage, setActiveImage] = useState(0);
+  const inCart = product ? qtyOf(product.id) : 0;
+
+  useEffect(() => {
+    if (product) {
+      markViewed(product.id);
+      setLocalQty(1);
+      setActiveImage(0);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product.id]);
+  }, [product?.id]);
+
+  if (isLoading || !product) {
+    return (
+      <SiteLayout>
+        <Container>
+          <Breadcrumbs items={[{ label: "Loading..." }]} />
+        </Container>
+      </SiteLayout>
+    );
+  }
 
   const gallery = [product.image, product.image, product.image];
-  const related = productsByCategory(product.category).filter((p) => p.id !== product.id);
   const recent = recentlyViewed
     .filter((id) => id !== product.id)
     .map((id) => productById(id))

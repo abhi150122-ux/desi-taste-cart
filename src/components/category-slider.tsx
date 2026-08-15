@@ -1,10 +1,16 @@
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { categories } from "@/lib/catalog";
+import { getCategories, type Category } from "@/lib/catalog";
 
 export function CategorySlider() {
   const railRef = useRef<HTMLDivElement>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    getCategories().then(setCategories);
+  }, []);
+
   const scrollBy = (dir: number) => railRef.current?.scrollBy({ left: dir * 500, behavior: "smooth" });
 
   return (

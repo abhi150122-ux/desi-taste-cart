@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
-import { categories, productsByCategory } from "@/lib/catalog";
+import { getCategories, productsByCategory, type Category } from "@/lib/catalog";
 
 export const Route = createFileRoute("/categories")({
   head: () => ({
@@ -20,6 +21,41 @@ export const Route = createFileRoute("/categories")({
 });
 
 function CategoriesPage() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      setIsLoading(true);
+      const cats = await getCategories();
+      setCategories(cats);
+
+      // Load product counts for each category
+      const counts: Record<string, number> = {};
+      for (const cat of cats) {
+        const products = await productsByCategory(cat.slug);
+        counts[cat.slug] = products.length;
+      }
+      setCategoryCounts(counts);
+      setIsLoading(false);
+    };
+
+    loadCategories();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <SiteLayout>
+        <Container>
+          <Breadcrumbs items={[{ label: "Categories" }]} />
+          <h1 className="text-2xl font-bold sm:text-3xl">Shop by Category</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Loading categories...</p>
+        </Container>
+      </SiteLayout>
+    );
+  }
+
   return (
     <SiteLayout>
       <Container>
@@ -43,7 +79,7 @@ function CategoriesPage() {
                 className="aspect-square w-full rounded-xl object-cover"
               />
               <p className="mt-2 text-xs font-semibold">{c.name}</p>
-              <p className="text-[11px] text-muted-foreground">{productsByCategory(c.slug).length} items</p>
+              <p className="text-[11px] text-muted-foreground">{categoryCounts[c.slug] ?? 0} items</p>
             </Link>
           ))}
         </div>

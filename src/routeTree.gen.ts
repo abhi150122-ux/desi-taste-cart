@@ -15,6 +15,7 @@ import { Route as CartRouteImport } from './routes/cart'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -51,6 +52,11 @@ const CheckoutRoute = CheckoutRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrdersRoute = OrdersRouteImport.update({
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/categories': typeof CategoriesRoute
   '/checkout': typeof CheckoutRoute
   '/login': typeof LoginRoute
+  '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRoute
   '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/categories': typeof CategoriesRoute
   '/checkout': typeof CheckoutRoute
   '/login': typeof LoginRoute
+  '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRoute
   '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/categories': typeof CategoriesRoute
   '/checkout': typeof CheckoutRoute
   '/login': typeof LoginRoute
+  '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRoute
   '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/checkout'
     | '/login'
+    | '/notifications'
     | '/orders'
     | '/search'
     | '/signup'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/checkout'
     | '/login'
+    | '/notifications'
     | '/orders'
     | '/search'
     | '/signup'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/checkout'
     | '/login'
+    | '/notifications'
     | '/orders'
     | '/search'
     | '/signup'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   CategoriesRoute: typeof CategoriesRoute
   CheckoutRoute: typeof CheckoutRoute
   LoginRoute: typeof LoginRoute
+  NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRoute
   SearchRoute: typeof SearchRoute
   SignupRoute: typeof SignupRoute
@@ -241,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orders': {
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   CategoriesRoute: CategoriesRoute,
   CheckoutRoute: CheckoutRoute,
   LoginRoute: LoginRoute,
+  NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRoute,
   SearchRoute: SearchRoute,
   SignupRoute: SignupRoute,

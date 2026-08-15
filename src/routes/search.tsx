@@ -6,7 +6,7 @@ import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { SearchBar } from "@/components/search-bar";
 import { ProductGrid } from "@/components/product-grid";
 import { ProductCardSkeleton } from "@/components/skeletons";
-import { searchProducts, categories } from "@/lib/catalog";
+import { searchProducts, getCategories, type Product, type Category } from "@/lib/catalog";
 
 export const Route = createFileRoute("/search")({
   validateSearch: z.object({ q: z.string().optional() }),
@@ -27,13 +27,23 @@ function SearchPage() {
   const { q } = Route.useSearch();
   const query = q ?? "";
   const [loading, setLoading] = useState(true);
-  const results = searchProducts(query);
+  const [results, setResults] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
     setLoading(true);
-    const t = setTimeout(() => setLoading(false), 250);
+    const loadResults = async () => {
+      const searchResults = await searchProducts(query);
+      setResults(searchResults);
+      setLoading(false);
+    };
+    const t = setTimeout(loadResults, 250);
     return () => clearTimeout(t);
   }, [query]);
+
+  useEffect(() => {
+    getCategories().then(setCategories);
+  }, []);
 
   return (
     <SiteLayout>

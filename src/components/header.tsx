@@ -1,14 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, Leaf, MapPin, Menu, ShoppingCart, User, X } from "lucide-react";
 import { SearchBar } from "./search-bar";
-import { megaMenu, categories } from "@/lib/catalog";
+import { megaMenu, getCategories, type Category } from "@/lib/catalog";
 import { useShop } from "@/context/shop";
 import { inr } from "@/lib/format";
 
 export function Header() {
   const { cartCount, totals, user } = useShop();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    getCategories().then(setCategories);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 border-b border-accent/25 bg-background/95 backdrop-blur">

@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Heart } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { useShop } from "@/context/shop";
-import { productById } from "@/lib/catalog";
+import { productById, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 
 export const Route = createFileRoute("/wishlist")({
@@ -22,7 +23,23 @@ export const Route = createFileRoute("/wishlist")({
 
 function WishlistPage() {
   const { wishlist, toggleWishlist, addToCart } = useShop();
-  const items = wishlist.map((id) => productById(id)).filter((p) => p !== undefined);
+  const [items, setItems] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadItems = async () => {
+      setIsLoading(true);
+      const products: Product[] = [];
+      for (const id of wishlist) {
+        const product = await productById(id);
+        if (product) products.push(product);
+      }
+      setItems(products);
+      setIsLoading(false);
+    };
+
+    loadItems();
+  }, [wishlist]);
 
   return (
     <SiteLayout>

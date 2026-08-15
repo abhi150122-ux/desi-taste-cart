@@ -1,17 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Search, X } from "lucide-react";
-import { searchProducts } from "@/lib/catalog";
+import { searchProducts, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function SearchBar({ className, autoFocus }: { className?: string; autoFocus?: boolean }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
   const navigate = useNavigate();
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const suggestions = useMemo(() => searchProducts(query).slice(0, 6), [query]);
+  useEffect(() => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      return;
+    }
+
+    const loadSuggestions = async () => {
+      const results = await searchProducts(query);
+      setSuggestions(results.slice(0, 6));
+    };
+
+    const debounce = setTimeout(loadSuggestions, 200);
+    return () => clearTimeout(debounce);
+  }, [query]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

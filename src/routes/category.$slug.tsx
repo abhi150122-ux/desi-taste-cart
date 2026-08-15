@@ -1,15 +1,23 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { ProductGrid } from "@/components/product-grid";
-import { categoryBySlug, productsByCategory } from "@/lib/catalog";
+import { categoryBySlug, productsByCategory, type Category, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 
 export const Route = createFileRoute("/category/$slug")({
-  loader: ({ params }) => {
-    const category = categoryBySlug(params.slug);
-    if (!category) throw notFound();
-    return { name: category.name, description: category.description };
+  loader: async ({ params }) => {
+    try {
+      const category = await categoryBySlug(params.slug);
+      if (!category) {
+        console.warn(`Category not found: ${params.slug}`);
+        throw notFound();
+      }
+      return { name: category.name, description: category.description };
+    } catch (error) {
+      console.error(`Error loading category ${params.slug}:`, error);
+      throw notFound();
+    }
   },
   head: ({ loaderData }) => {
     if (!loaderData)
@@ -33,8 +41,21 @@ const sorts = ["Popular", "Price: Low to High", "Price: High to Low", "Rating", 
 
 function CategoryPage() {
   const { slug } = Route.useParams();
-  const category = categoryBySlug(slug)!;
-  const all = productsByCategory(slug);
+  const [category, setCategory] = useState<Category | null>(null);
+  const [all, setAll] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      const cat = await categoryBySlug(slug);
+      setCategory(cat || null);
+      const products = await productsByCategory(slug);
+      setAll(products);
+      setIsLoading(false);
+    };
+    loadData();
+  }, [slug]);
 
   const [sort, setSort] = useState<(typeof sorts)[number]>("Popular");
   const [maxPrice, setMaxPrice] = useState(2000);
@@ -66,15 +87,27 @@ function CategoryPage() {
     }
   }, [all, sort, maxPrice, minRating, inStockOnly, unit]);
 
+  if (isLoading || !category) {
+    return (
+      <SiteLayout>
+        <Container>
+          <Breadcrumbs items={[{ label: "Loading..." }]} />
+        </Container>
+      </SiteLayout>
+    );
+  }
+
+  const category_data = category;
+
   return (
     <SiteLayout>
       <Container>
-        <Breadcrumbs items={[{ label: "Categories" }, { label: category.name }]} />
+        <Breadcrumbs items={[{ label: "Categories" }, { label: category_data.name }]} />
 
         <div className="relative overflow-hidden rounded-3xl border border-accent/25 bg-card">
           <img
-            src={category.image}
-            alt={category.name}
+            src={category_data.image}
+            alt={category_data.name}
             width={1200}
             height={320}
             loading="lazy"
@@ -82,8 +115,8 @@ function CategoryPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-background/95 to-background/20" />
           <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10">
-            <h1 className="text-2xl font-bold sm:text-4xl">{category.name}</h1>
-            <p className="mt-1 max-w-lg text-sm text-muted-foreground">{category.description}</p>
+            <h1 className="text-2xl font-bold sm:text-4xl">{category_data.name}</h1>
+            <p className="mt-1 max-w-lg text-sm text-muted-foreground">{category_data.description}</p>
             <p className="mt-2 text-xs font-semibold text-primary">{all.length} products</p>
           </div>
         </div>

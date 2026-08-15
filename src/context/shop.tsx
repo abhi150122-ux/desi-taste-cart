@@ -7,7 +7,20 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { products, productById, type Product } from "@/lib/catalog";
+import {
+  apiAddCartItem,
+  apiClearCart,
+  apiCreateCustomerAddress,
+  apiCreateOrder,
+  apiCustomerProfile,
+  apiDeleteCartItem,
+  apiGetCustomerAddresses,
+  apiGetCustomerCart,
+  apiGetCustomerOrders,
+  apiUpdateCartItem,
+  setAuthToken,
+} from "@/lib/api";
+import { getProducts, productByIdSync, type Product } from "@/lib/catalog";
 import { COUPONS, DELIVERY_FEE, FREE_DELIVERY_ABOVE, TAX_RATE } from "@/lib/format";
 
 export type CartLine = { productId: string; qty: number };
@@ -33,7 +46,12 @@ export type Order = {
   status: "Confirmed" | "Packed" | "Out for Delivery" | "Delivered";
   eta: string;
 };
-export type User = { name: string; email: string; mobile: string };
+export type User = {
+  id?: string | number;
+  name: string;
+  email: string;
+  mobile: string;
+};
 
 type ShopState = {
   cart: CartLine[];
@@ -47,38 +65,83 @@ type ShopState = {
 
 const KEY = "jdp-shop-v1";
 
-const sampleAddress: Address = {
-  id: "addr-1",
-  fullName: "Abhishek Jain",
-  mobile: "9876543210",
-  house: "B-204, Shanti Residency",
-  street: "MG Road",
-  landmark: "Near Jain Mandir",
-  city: "Indore",
-  state: "Madhya Pradesh",
-  pincode: "452001",
+const normalizeAddress = (entry: any, fallback?: Address): Address => {
+  const fullName = entry?.full_name || entry?.fullName || entry?.label || entry?.name || fallback?.fullName || "";
+  const mobile = entry?.mobile || entry?.phone || entry?.phone_number || fallback?.mobile || "";
+  const house = entry?.house || entry?.line_one || entry?.address_line_1 || entry?.line1 || fallback?.house || "";
+  const street = entry?.street || entry?.line_two || entry?.area || entry?.address_line_2 || entry?.line2 || fallback?.street || "";
+  const landmark = entry?.landmark || fallback?.landmark || "";
+  const city = entry?.city || fallback?.city || "";
+  const state = entry?.state || fallback?.state || "";
+  const pincode = entry?.pincode || entry?.postal_code || fallback?.pincode || "";
+
+  return {
+    id: String(entry?.id ?? fallback?.id ?? `addr-${Date.now()}`),
+    fullName,
+    mobile,
+    house,
+    street,
+    landmark,
+    city,
+    state,
+    pincode,
+  };
 };
 
-const sampleOrder: Order = {
-  id: "JDP10245",
-  date: "02 Aug 2026",
-  items: [
-    { productId: "JDP-001", name: "Cold Pressed Til Oil", unit: "1 Litre", qty: 1, price: 379 },
-    { productId: "JDP-019", name: "Moong Dhuli", unit: "1 Kg", qty: 1, price: 149 },
-    { productId: "JDP-041", name: "Makhana", unit: "250 Gm", qty: 1, price: 299 },
-  ],
-  total: 1049,
-  payment: "Cash on Delivery",
-  address: sampleAddress,
-  status: "Out for Delivery",
-  eta: "Tomorrow, 10 AM - 1 PM",
+const normalizeUser = (entry: any): User => ({
+  id: entry?.id ?? entry?.customer_id ?? entry?.user_id,
+  name: entry?.name || entry?.full_name || entry?.first_name || "Jain Customer",
+  email: entry?.email || "customer@jaindesiandpure.in",
+  mobile: entry?.mobile || entry?.phone || entry?.phone_number || "",
+});
+
+const normalizeOrder = (entry: any, fallback?: Order): Order => {
+  const address = entry?.address ? normalizeAddress(entry.address, fallback?.address) : fallback?.address ?? {
+    id: "addr-1",
+    fullName: "",
+    mobile: "",
+    house: "",
+    street: "",
+    landmark: "",
+    city: "",
+    state: "",
+    pincode: "",
+  };
+
+  const mappedStatus = String(entry?.status ?? fallback?.status ?? "Confirmed");
+  const normalizedStatus = mappedStatus.toLowerCase() === "pending" ? "Confirmed" : mappedStatus;
+
+  const rawItems = Array.isArray(entry?.items)
+    ? entry.items
+    : Array.isArray(entry?.products)
+      ? entry.products
+      : [];
+
+  const items = rawItems.map((item: any) => ({
+    productId: String(item?.product_id ?? item?.productId ?? item?.id ?? ""),
+    name: item?.name || item?.product_name || "Item",
+    unit: item?.unit || item?.size || "",
+    qty: Number(item?.quantity ?? item?.qty ?? 1),
+    price: Number(item?.price ?? item?.unit_price ?? 0),
+  }));
+
+  return {
+    id: String(entry?.id ?? entry?.order_number ?? entry?.orderId ?? fallback?.id ?? "JDP"),
+    date: entry?.created_at ? new Date(entry.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : fallback?.date ?? new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+    items,
+    total: Number(entry?.total ?? entry?.grand_total ?? entry?.amount ?? fallback?.total ?? 0),
+    payment: entry?.payment_method || entry?.payment || fallback?.payment || "Cash on Delivery",
+    address,
+    status: normalizedStatus as Order["status"],
+    eta: entry?.eta || fallback?.eta || "Tomorrow, 10 AM - 1 PM",
+  };
 };
 
 const initialState: ShopState = {
   cart: [],
   wishlist: [],
-  orders: [sampleOrder],
-  addresses: [sampleAddress],
+  orders: [],
+  addresses: [],
   user: null,
   coupon: null,
   recentlyViewed: [],
@@ -109,8 +172,8 @@ type ShopContextValue = ShopState & {
   removeCoupon: () => void;
   login: (user: User) => void;
   logout: () => void;
-  addAddress: (address: Omit<Address, "id">) => Address;
-  placeOrder: (payment: string, address: Address) => Order;
+  addAddress: (address: Omit<Address, "id">) => Promise<Address>;
+  placeOrder: (payment: string, address: Address) => Promise<Order>;
   markViewed: (id: string) => void;
 };
 
@@ -120,10 +183,49 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ShopState>(initialState);
   const [hydrated, setHydrated] = useState(false);
 
+  const patch = useCallback((fn: (s: ShopState) => ShopState) => setState((s) => fn(s)), []);
+
+  const hydrateCustomerData = useCallback(async (customerId?: string | number) => {
+    if (!customerId) return;
+
+    try {
+      const customer = await apiCustomerProfile(String(customerId));
+      const profile = normalizeUser(customer);
+      const profileResponse = Array.isArray(customer?.addresses) ? customer.addresses : await apiGetCustomerAddresses(String(customerId));
+      const addresses = (Array.isArray(profileResponse) ? profileResponse : []).map((entry) => normalizeAddress(entry));
+      const ordersResponse = await apiGetCustomerOrders(String(customerId));
+      const orders = (Array.isArray(ordersResponse) ? ordersResponse : []).map((entry) => normalizeOrder(entry));
+      const cartResponse = await apiGetCustomerCart(String(customerId));
+      const remoteItems = Array.isArray(cartResponse?.items) ? cartResponse.items : [];
+
+      patch((s) => ({
+        ...s,
+        user: { ...s.user, ...profile },
+        addresses,
+        orders,
+        cart: remoteItems
+          .map((item: any) => ({
+            productId: String(item?.product_id ?? item?.productId ?? item?.id ?? ""),
+            qty: Number(item?.quantity ?? item?.qty ?? 1),
+          }))
+          .filter((line) => Boolean(line.productId) && Number(line.qty) > 0),
+      }));
+    } catch (error) {
+      console.warn("Customer sync failed:", error);
+    }
+  }, [patch]);
+
+  useEffect(() => {
+    getProducts().catch((err) => console.error("Failed to load products:", err));
+  }, []);
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem(KEY);
-      if (stored) setState({ ...initialState, ...(JSON.parse(stored) as Partial<ShopState>) });
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<ShopState>;
+        setState({ ...initialState, ...parsed });
+      }
     } catch {
       /* ignore corrupt storage */
     }
@@ -135,16 +237,20 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(KEY, JSON.stringify(state));
   }, [state, hydrated]);
 
-  const patch = useCallback((fn: (s: ShopState) => ShopState) => setState((s) => fn(s)), []);
+  useEffect(() => {
+    if (state.user?.id) {
+      hydrateCustomerData(state.user.id);
+    }
+  }, [state.user?.id, hydrateCustomerData]);
 
   const cartItems = useMemo(
     () =>
       state.cart
         .map((line) => {
-          const product = productById(line.productId);
-          return product ? { product, qty: line.qty } : null;
+          const product = productByIdSync(String(line.productId));
+          return product ? { product, qty: Number(line.qty) || 0 } : null;
         })
-        .filter((v): v is { product: Product; qty: number } => v !== null),
+        .filter((v): v is { product: Product; qty: number } => v !== null && v.qty > 0),
     [state.cart],
   );
 
@@ -173,26 +279,93 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     ...state,
     hydrated,
     cartItems,
-    cartCount: state.cart.reduce((n, l) => n + l.qty, 0),
+    cartCount: state.cart.reduce((n, l) => n + (Number(l.qty) || 0), 0),
     totals,
-    qtyOf: (id) => state.cart.find((l) => l.productId === id)?.qty ?? 0,
-    addToCart: (id, qty = 1) =>
-      patch((s) => {
-        const existing = s.cart.find((l) => l.productId === id);
-        return {
+    qtyOf: (id) => state.cart.find((l) => String(l.productId) === String(id))?.qty ?? 0,
+    addToCart: async (id, qty = 1) => {
+      if (!state.user?.id) {
+        if (typeof window !== "undefined") {
+          window.location.assign("/login");
+        }
+        return;
+      }
+
+      try {
+        const cart = await apiGetCustomerCart(String(state.user.id));
+        const items = Array.isArray(cart?.items) ? cart.items : [];
+        const existing = items.find((item: any) => String(item?.product_id ?? item?.productId) === String(id));
+
+        if (existing) {
+          await apiUpdateCartItem(String(state.user.id), String(existing.id), { quantity: Number(existing.quantity ?? 0) + qty });
+        } else {
+          await apiAddCartItem(String(state.user.id), { product_id: id, quantity: qty });
+        }
+
+        await hydrateCustomerData(state.user.id);
+      } catch (error) {
+        console.error("Add-to-cart failed:", error);
+      }
+    },
+    setQty: async (id, qty) => {
+      if (!state.user?.id) {
+        patch((s) => ({
           ...s,
-          cart: existing
-            ? s.cart.map((l) => (l.productId === id ? { ...l, qty: l.qty + qty } : l))
-            : [...s.cart, { productId: id, qty }],
-        };
-      }),
-    setQty: (id, qty) =>
-      patch((s) => ({
-        ...s,
-        cart: qty <= 0 ? s.cart.filter((l) => l.productId !== id) : s.cart.map((l) => (l.productId === id ? { ...l, qty } : l)),
-      })),
-    removeFromCart: (id) => patch((s) => ({ ...s, cart: s.cart.filter((l) => l.productId !== id) })),
-    clearCart: () => patch((s) => ({ ...s, cart: [], coupon: null })),
+          cart: qty <= 0 ? s.cart.filter((l) => String(l.productId) !== String(id)) : s.cart.map((l) => (String(l.productId) === String(id) ? { ...l, qty } : l)),
+        }));
+        return;
+      }
+
+      try {
+        const cart = await apiGetCustomerCart(String(state.user.id));
+        const items = Array.isArray(cart?.items) ? cart.items : [];
+        const existing = items.find((item: any) => String(item?.product_id ?? item?.productId) === String(id));
+
+        if (!existing) {
+          if (qty > 0) {
+            await apiAddCartItem(String(state.user.id), { product_id: id, quantity: qty });
+          }
+        } else if (qty <= 0) {
+          await apiDeleteCartItem(String(state.user.id), String(existing.id));
+        } else {
+          await apiUpdateCartItem(String(state.user.id), String(existing.id), { quantity: qty });
+        }
+
+        await hydrateCustomerData(state.user.id);
+      } catch (error) {
+        console.error("Update cart quantity failed:", error);
+      }
+    },
+    removeFromCart: async (id) => {
+      if (!state.user?.id) {
+        patch((s) => ({ ...s, cart: s.cart.filter((l) => l.productId !== id) }));
+        return;
+      }
+
+      try {
+        const cart = await apiGetCustomerCart(String(state.user.id));
+        const items = Array.isArray(cart?.items) ? cart.items : [];
+        const existing = items.find((item: any) => String(item?.product_id ?? item?.productId) === String(id));
+        if (existing) {
+          await apiDeleteCartItem(String(state.user.id), String(existing.id));
+          await hydrateCustomerData(state.user.id);
+        }
+      } catch (error) {
+        console.error("Remove from cart failed:", error);
+      }
+    },
+    clearCart: async () => {
+      if (!state.user?.id) {
+        patch((s) => ({ ...s, cart: [], coupon: null }));
+        return;
+      }
+
+      try {
+        await apiClearCart(String(state.user.id));
+        await hydrateCustomerData(state.user.id);
+      } catch (error) {
+        console.error("Clear cart failed:", error);
+      }
+    },
     toggleWishlist: (id) =>
       patch((s) => ({
         ...s,
@@ -209,16 +382,66 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       return { ok: true, message: `${key} applied — ${c.label}` };
     },
     removeCoupon: () => patch((s) => ({ ...s, coupon: null })),
-    login: (user) => patch((s) => ({ ...s, user })),
-    logout: () => patch((s) => ({ ...s, user: null })),
-    addAddress: (address) => {
-      const full: Address = { ...address, id: `addr-${Date.now()}` };
-      patch((s) => ({ ...s, addresses: [full, ...s.addresses] }));
+    login: (user) => {
+      const normalizedUser = normalizeUser(user);
+      patch((s) => ({ ...s, user: normalizedUser }));
+    },
+    logout: () => {
+      setAuthToken(null);
+      patch((s) => ({ ...s, user: null, addresses: [], orders: [] }));
+    },
+    addAddress: async (address) => {
+      if (!state.user?.id) {
+        throw new Error("Please log in to save an address.");
+      }
+
+      const payload = {
+        label: `${address.fullName}`.trim() || "Home",
+        line_one: address.house,
+        line_two: address.street,
+        area: address.street || address.house,
+        city: address.city,
+        state: address.state,
+        pincode: address.pincode,
+        landmark: address.landmark,
+        is_default: true,
+      };
+
+      const created = await apiCreateCustomerAddress(String(state.user.id), payload);
+      const full = normalizeAddress(created, {
+        id: String(created?.id ?? `addr-${Date.now()}`),
+        fullName: address.fullName,
+        mobile: address.mobile,
+        house: address.house,
+        street: address.street,
+        landmark: address.landmark,
+        city: address.city,
+        state: address.state,
+        pincode: address.pincode,
+      });
+
+      await hydrateCustomerData(state.user.id);
+      patch((s) => ({ ...s, addresses: [full, ...s.addresses.filter((entry) => entry.id !== full.id)] }));
       return full;
     },
-    placeOrder: (payment, address) => {
-      const order: Order = {
-        id: `JDP${10246 + state.orders.length}`,
+    placeOrder: async (payment, address) => {
+      if (!state.user?.id) {
+        throw new Error("Please log in to place an order.");
+      }
+
+      const paymentMethod = payment === "Cash on Delivery" ? "cod" : payment === "UPI" ? "upi" : "card";
+      const response = await apiCreateOrder({
+        customer_id: state.user.id,
+        customer_address_id: address.id,
+        payment_method: paymentMethod,
+        items: cartItems.map((i) => ({
+          product_id: i.product.id,
+          quantity: i.qty,
+        })),
+      });
+
+      const order = normalizeOrder(response, {
+        id: String(response?.id ?? response?.order_number ?? `JDP${Date.now()}`),
         date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
         items: cartItems.map((i) => ({
           productId: i.product.id,
@@ -232,7 +455,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         address,
         status: "Confirmed",
         eta: "Tomorrow, 10 AM - 1 PM",
-      };
+      });
+
+      await hydrateCustomerData(state.user.id);
       patch((s) => ({ ...s, orders: [order, ...s.orders], cart: [], coupon: null }));
       return order;
     },
@@ -248,5 +473,3 @@ export function useShop() {
   if (!ctx) throw new Error("useShop must be used inside ShopProvider");
   return ctx;
 }
-
-export const allProducts = products;

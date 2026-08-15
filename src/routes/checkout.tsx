@@ -59,7 +59,7 @@ function CheckoutPage() {
     );
   }
 
-  const saveAddress = () => {
+  const saveAddress = async () => {
     if (!form.fullName || !form.mobile || !form.house || !form.city || !form.pincode) {
       toast.error("Please fill name, mobile, house, city and pincode");
       return;
@@ -72,25 +72,35 @@ function CheckoutPage() {
       toast.error("Enter a valid 6 digit pincode");
       return;
     }
-    const saved = addAddress(form);
-    setSelected(saved.id);
-    setShowForm(false);
-    setForm(empty);
-    toast.success("Address saved");
+
+    try {
+      const saved = await addAddress(form);
+      setSelected(saved.id);
+      setShowForm(false);
+      setForm(empty);
+      toast.success("Address saved");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to save address");
+    }
   };
 
-  const submit = () => {
+  const submit = async () => {
     const address: Address | undefined = addresses.find((a) => a.id === selected);
     if (!address) {
       toast.error("Please select a delivery address");
       return;
     }
-    setPlacing(true);
-    setTimeout(() => {
-      const order = placeOrder(payment, address);
+
+    try {
+      setPlacing(true);
+      const order = await placeOrder(payment, address);
       toast.success("Payment successful");
       navigate({ to: "/order/$id", params: { id: order.id } });
-    }, 800);
+    } catch (error: any) {
+      toast.error(error?.message || "Order placement failed");
+    } finally {
+      setPlacing(false);
+    }
   };
 
   return (

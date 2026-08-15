@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { HeartHandshake, Leaf, ShieldCheck, Wheat } from "lucide-react";
+import { useEffect, useState } from "react";
 import { SiteLayout, Container } from "@/components/site-layout";
 import { HeroSlider } from "@/components/hero-slider";
 import { PromoSlider } from "@/components/promo-slider";
 import { CategorySlider } from "@/components/category-slider";
 import { ProductSlider } from "@/components/product-slider";
-import { homeSections, productById } from "@/lib/catalog";
+import { getHomeSections, productById, type Product } from "@/lib/catalog";
 import { useShop } from "@/context/shop";
 
 export const Route = createFileRoute("/")({
@@ -38,7 +39,37 @@ const usps = [
 
 function Index() {
   const { recentlyViewed } = useShop();
-  const recent = recentlyViewed.map((id) => productById(id)).filter((p) => p !== undefined);
+  const [homeSections, setHomeSections] = useState<any[]>([]);
+  const [recent, setRecent] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSections = async () => {
+      try {
+        setIsLoading(true);
+        console.log("[HOME] Loading home sections...");
+        
+        const sections = await getHomeSections();
+        console.log("[HOME] Loaded sections:", sections);
+        setHomeSections(sections);
+        
+        // Load recently viewed products
+        const recentProducts: Product[] = [];
+        for (const id of recentlyViewed) {
+          const product = await productById(id);
+          if (product) recentProducts.push(product);
+        }
+        setRecent(recentProducts);
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error("[HOME] Error loading sections:", error);
+        setIsLoading(false);
+      }
+    };
+    
+    loadSections();
+  }, [recentlyViewed]);
 
   return (
     <SiteLayout>
@@ -47,14 +78,24 @@ function Index() {
         <PromoSlider />
         <CategorySlider />
 
-        {homeSections.map((section) => (
-          <ProductSlider
-            key={section.title}
-            title={section.title}
-            products={section.items}
-            {...(section.slug ? { viewAllSlug: section.slug } : {})}
-          />
-        ))}
+        {isLoading ? (
+          <div className="py-10 text-center">
+            <p className="text-muted-foreground">Loading products...</p>
+          </div>
+        ) : homeSections.length > 0 ? (
+          homeSections.map((section) => (
+            <ProductSlider
+              key={section.title}
+              title={section.title}
+              products={section.items}
+              {...(section.slug ? { viewAllSlug: section.slug } : {})}
+            />
+          ))
+        ) : (
+          <div className="py-10 text-center">
+            <p className="text-muted-foreground">No products available</p>
+          </div>
+        )}
 
         {recent.length > 0 && <ProductSlider title="Recently Viewed" products={recent} />}
 

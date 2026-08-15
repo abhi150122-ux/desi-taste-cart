@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { SiteLayout, Container } from "@/components/site-layout";
 import { useShop } from "@/context/shop";
+import { apiRegisterCustomer, setAuthToken } from "@/lib/api";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
@@ -24,7 +25,7 @@ function SignupPage() {
   const [form, setForm] = useState({ name: "", mobile: "", email: "", password: "", confirm: "" });
   const [agree, setAgree] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !/^\d{10}$/.test(form.mobile) || !form.email.includes("@")) {
       toast.error("Enter a valid name, 10 digit mobile and email");
@@ -38,9 +39,39 @@ function SignupPage() {
       toast.error("Please accept the Terms & Conditions");
       return;
     }
-    login({ name: form.name, email: form.email, mobile: form.mobile });
-    toast.success("Account created successfully");
-    navigate({ to: "/account" });
+
+    try {
+      const result = await apiRegisterCustomer({
+        name: form.name,
+        full_name: form.name,
+        mobile: form.mobile,
+        phone: form.mobile,
+        email: form.email,
+        password: form.password,
+        password_confirmation: form.confirm,
+      });
+
+      const token = typeof result === "object" && result && "token" in result ? String(result.token ?? "") : "";
+      const userData = (result && typeof result === "object" && "user" in result && result.user) || {
+        name: form.name,
+        email: form.email,
+        mobile: form.mobile,
+      };
+
+      if (token) setAuthToken(token);
+
+      login({
+        id: userData?.id ?? userData?.customer_id,
+        name: userData?.name || form.name,
+        email: userData?.email || form.email,
+        mobile: userData?.mobile || userData?.phone || form.mobile,
+      });
+
+      toast.success("Account created successfully");
+      navigate({ to: "/account" });
+    } catch (error: any) {
+      toast.error(error?.message || "Registration failed. Please try again.");
+    }
   };
 
   return (

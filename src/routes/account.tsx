@@ -73,6 +73,12 @@ function AccountPage() {
             <p className="text-xs text-muted-foreground">{wishlist.length} items saved</p>
           </Link>
 
+          <Link to="/notifications" className="rounded-2xl border bg-card p-5 hover:border-primary">
+            <Package className="size-5 text-primary" />
+            <p className="mt-3 font-bold">Notifications</p>
+            <p className="text-xs text-muted-foreground">Updates from Jain Desi and Pure</p>
+          </Link>
+
           <section className="rounded-2xl border bg-card p-5 lg:col-span-2">
             <div className="flex items-center gap-2">
               <MapPin className="size-4 text-primary" />
