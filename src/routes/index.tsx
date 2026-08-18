@@ -8,6 +8,7 @@ import { CategorySlider } from "@/components/category-slider";
 import { ProductSlider } from "@/components/product-slider";
 import { getHomeSections, productById, type Product } from "@/lib/catalog";
 import { useShop } from "@/context/shop";
+import { PageLoader } from "@/components/page-loader";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -79,9 +80,7 @@ function Index() {
         <CategorySlider />
 
         {isLoading ? (
-          <div className="py-10 text-center">
-            <p className="text-muted-foreground">Loading products...</p>
-          </div>
+          <PageLoader label="Loading products..." />
         ) : homeSections.length > 0 ? (
           homeSections.map((section) => (
             <ProductSlider

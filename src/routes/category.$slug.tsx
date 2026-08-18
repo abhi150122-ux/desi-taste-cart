@@ -4,6 +4,7 @@ import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { ProductGrid } from "@/components/product-grid";
 import { categoryBySlug, productsByCategory, type Category, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
+import { PageLoader } from "@/components/page-loader";
 
 export const Route = createFileRoute("/category/$slug")({
   loader: async ({ params }) => {
@@ -92,6 +93,7 @@ function CategoryPage() {
       <SiteLayout>
         <Container>
           <Breadcrumbs items={[{ label: "Loading..." }]} />
+          <PageLoader label="Loading category..." />
         </Container>
       </SiteLayout>
     );

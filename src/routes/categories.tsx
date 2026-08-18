@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
-import { getCategories, productsByCategory, type Category } from "@/lib/catalog";
+import { getCategories, categoryCountsMap, type Category } from "@/lib/catalog";
+import { PageLoader } from "@/components/page-loader";
 
 export const Route = createFileRoute("/categories")({
   head: () => ({
@@ -28,15 +29,8 @@ function CategoriesPage() {
   useEffect(() => {
     const loadCategories = async () => {
       setIsLoading(true);
-      const cats = await getCategories();
+      const [cats, counts] = await Promise.all([getCategories(), categoryCountsMap()]);
       setCategories(cats);
-
-      // Load product counts for each category
-      const counts: Record<string, number> = {};
-      for (const cat of cats) {
-        const products = await productsByCategory(cat.slug);
-        counts[cat.slug] = products.length;
-      }
       setCategoryCounts(counts);
       setIsLoading(false);
     };
@@ -50,7 +44,7 @@ function CategoriesPage() {
         <Container>
           <Breadcrumbs items={[{ label: "Categories" }]} />
           <h1 className="text-2xl font-bold sm:text-3xl">Shop by Category</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Loading categories...</p>
+          <PageLoader label="Loading categories..." />
         </Container>
       </SiteLayout>
     );

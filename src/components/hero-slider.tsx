@@ -21,11 +21,18 @@ export function HeroSlider() {
   useEffect(() => {
     const loadSlides = async () => {
       const banners = await getHomeBanners();
-      const normalized = banners.slice(0, 5).map((banner: HomeBanner) => ({
-        image: banner.image_url,
-        slug: getBannerSlug(banner.target_url),
-        targetUrl: banner.target_url,
-      }));
+      const normalized: Array<{ image: string; slug: string; targetUrl?: string }> = banners.slice(0, 5).map((banner: HomeBanner) => {
+        const slide = {
+          image: banner.image_url,
+          slug: getBannerSlug(banner.target_url),
+        } as { image: string; slug: string; targetUrl?: string };
+
+        if (banner.target_url && banner.target_url.trim()) {
+          slide.targetUrl = banner.target_url.trim();
+        }
+
+        return slide;
+      });
       setSlides(normalized);
     };
 
@@ -51,7 +58,7 @@ export function HeroSlider() {
         width={1600}
         height={640}
         loading={i === 0 ? "eager" : "lazy"}
-        className="h-full w-full rounded-none object-cover"
+        className="h-full w-full rounded-none object-cover object-center"
       />
     );
 
@@ -59,7 +66,7 @@ export function HeroSlider() {
       return (
         <div
           key={`${s.slug}-${i}`}
-          className={`absolute inset-0 p-3 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
+          className={`absolute inset-0 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
         >
           {slideContent}
         </div>
@@ -73,7 +80,7 @@ export function HeroSlider() {
           href={slideLink}
           target="_blank"
           rel="noreferrer"
-          className={`absolute inset-0 block p-3 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
+          className={`absolute inset-0 block transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
         >
           {slideContent}
         </a>
@@ -85,7 +92,7 @@ export function HeroSlider() {
       <Link
         key={`${s.slug}-${i}`}
         to={normalizedLink as any}
-        className={`absolute inset-0 block p-3 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        className={`absolute inset-0 block transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
       >
         {slideContent}
       </Link>
@@ -93,7 +100,7 @@ export function HeroSlider() {
   };
 
   return (
-    <section className="relative overflow-hidden border border-accent/25 bg-card p-3 shadow-[var(--shadow-card)]">
+    <section className="relative overflow-hidden rounded-2xl border border-accent/25 bg-card shadow-[var(--shadow-card)]">
       <div className="relative h-[260px] w-full overflow-hidden bg-transparent sm:h-[320px] md:h-[400px]">
         {slides.map(renderSlide)}
       </div>

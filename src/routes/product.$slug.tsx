@@ -7,6 +7,7 @@ import { ProductSlider } from "@/components/product-slider";
 import { productBySlug, productsByCategory, sampleReviews, productByIdSync, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 import { useShop } from "@/context/shop";
+import { PageLoader } from "@/components/page-loader";
 
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
@@ -80,6 +81,7 @@ function ProductPage() {
       <SiteLayout>
         <Container>
           <Breadcrumbs items={[{ label: "Loading..." }]} />
+          <PageLoader label="Loading product..." />
         </Container>
       </SiteLayout>
     );

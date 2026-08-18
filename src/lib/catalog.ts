@@ -137,10 +137,14 @@ export const fetchCategories = async (): Promise<Category[]> => {
 
 // Cached categories
 let cachedCategories: Category[] | null = null;
+let categoriesCacheTime = 0;
+const CATEGORY_CACHE_DURATION = 10 * 60 * 1000;
 
 export const getCategories = async (): Promise<Category[]> => {
-  if (cachedCategories) return cachedCategories;
+  const now = Date.now();
+  if (cachedCategories && now - categoriesCacheTime < CATEGORY_CACHE_DURATION) return cachedCategories;
   cachedCategories = await fetchCategories();
+  categoriesCacheTime = now;
   return cachedCategories;
 };
 
@@ -339,14 +343,12 @@ export const fetchAllProducts = async (): Promise<Product[]> => {
     console.log("[API] Fetching all products...");
     const categories = await getCategories();
     console.log(`[API] Fetching products for ${categories.length} categories`);
-    
-    const allProducts: Product[] = [];
 
-    for (const category of categories) {
-      const products = await fetchProductsByCategory(category.slug);
-      allProducts.push(...products);
-    }
+    const categoryResults = await Promise.all(
+      categories.map(async (category) => fetchProductsByCategory(category.slug)),
+    );
 
+    const allProducts: Product[] = categoryResults.flat();
     console.log(`[API] Total products fetched: ${allProducts.length}`);
     return allProducts;
   } catch (error) {
@@ -357,17 +359,17 @@ export const fetchAllProducts = async (): Promise<Product[]> => {
 
 // Cached products
 let cachedProducts: Product[] | null = null;
-let cacheTime = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+let productsCacheTime = 0;
+const PRODUCT_CACHE_DURATION = 10 * 60 * 1000;
 
 export const getProducts = async (forceRefresh = false): Promise<Product[]> => {
   const now = Date.now();
-  if (cachedProducts && !forceRefresh && now - cacheTime < CACHE_DURATION) {
+  if (cachedProducts && !forceRefresh && now - productsCacheTime < PRODUCT_CACHE_DURATION) {
     return cachedProducts;
   }
 
   cachedProducts = await fetchAllProducts();
-  cacheTime = now;
+  productsCacheTime = now;
   return cachedProducts;
 };
 
@@ -385,6 +387,19 @@ export const productById = async (id: string) => {
 export const productsByCategory = async (slug: string) => {
   const products = await getProducts();
   return products.filter((p) => p.category === slug);
+};
+
+export const categoryCountsMap = async (): Promise<Record<string, number>> => {
+  const products = await getProducts();
+  const counts: Record<string, number> = {};
+
+  for (const product of products) {
+    const key = product.category || product.categoryName;
+    if (!key) continue;
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+
+  return counts;
 };
 
 export const searchProducts = async (query: string) => {
@@ -435,32 +450,35 @@ export const getHomeBanners = async (): Promise<HomeBanner[]> => {
 export const getHomeSections = async () => {
   try {
     console.log("[HOME] Loading home sections...");
-    
-    const categories = await getCategories();
-    console.log(`[HOME] Loaded ${categories.length} categories:`, categories.map(c => c.slug));
-    
-    const popularProducts = await getPopularProducts();
-    console.log(`[HOME] Loaded ${popularProducts.length} popular products`);
+
+    const [categories, products] = await Promise.all([getCategories(), getProducts()]);
+    console.log(`[HOME] Loaded ${categories.length} categories and ${products.length} products`);
+
+    const byCategory = products.reduce<Record<string, Product[]>>((acc, product) => {
+      const key = product.category || product.categoryName;
+      if (!key) return acc;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(product);
+      return acc;
+    }, {});
+
+    const popularProducts = products
+      .slice()
+      .sort((a, b) => b.reviewCount - a.reviewCount)
+      .slice(0, 12);
 
     const sections = [
       { title: "Popular Products", slug: "", items: popularProducts },
-      ...(await Promise.all(
-        categories.map(async (cat) => {
-          console.log(`[HOME] Loading products for category: ${cat.slug}`);
-          const items = await productsByCategory(cat.slug);
-          console.log(`[HOME] Loaded ${items.length} products for ${cat.slug}`);
-          return {
-            title: cat.name,
-            slug: cat.slug,
-            items,
-          };
-        }),
-      )),
+      ...categories.map((cat) => ({
+        title: cat.name,
+        slug: cat.slug,
+        items: byCategory[cat.slug] ?? [],
+      })),
     ];
-    
+
     console.log(`[HOME] Total sections created: ${sections.length}`);
     sections.forEach((s, i) => console.log(`[HOME] Section ${i}: ${s.title} (${s.items.length} items)`));
-    
+
     return sections;
   } catch (error) {
     console.error("[HOME] Error loading sections:", error);
