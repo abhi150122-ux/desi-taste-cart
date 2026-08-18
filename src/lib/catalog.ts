@@ -46,7 +46,35 @@ export type Category = {
   image: string;
 };
 
-// Map API category response to Category type
+const normalizeImageUrl = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : "";
+};
+
+const fetchFirstProductImageForCategory = async (categorySlug: string): Promise<string> => {
+  try {
+    const url = `${API_BASE_URL}/categories/${categorySlug}/products?page=1&page_size=1`;
+    const response = await fetch(url);
+    if (!response.ok) return "";
+
+    const data = await response.json();
+    const productList = Array.isArray(data?.products)
+      ? data.products
+      : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data)
+          ? data
+          : [];
+
+    const firstProduct = productList[0] ?? null;
+    return normalizeImageUrl(firstProduct?.image_url ?? firstProduct?.image ?? firstProduct?.photo);
+  } catch (error) {
+    console.warn(`[API] Failed to fetch fallback image for ${categorySlug}:`, error);
+    return "";
+  }
+};
+
 const mapApiCategory = (apiCat: ApiCategory): Category => {
   const slug = ((apiCat['slug'] as string) || (apiCat['name'] as string) || "")
     .toLowerCase()
@@ -56,7 +84,7 @@ const mapApiCategory = (apiCat: ApiCategory): Category => {
     name: (apiCat['name'] as string) || "",
     slug: slug,
     description: (apiCat['description'] as string) || "",
-    image: (apiCat['image'] as string) || CATEGORY_IMAGES[slug] || oils,
+    image: normalizeImageUrl(apiCat['image_url'] ?? apiCat['image']) || CATEGORY_IMAGES[slug] || oils,
   };
 };
 
@@ -84,13 +112,20 @@ export const fetchCategories = async (): Promise<Category[]> => {
     } else if (data.categories && Array.isArray(data.categories)) {
       categoryList = data.categories;
     } else if (data.category) {
-      // Single category response, use it
       categoryList = [data.category];
     }
     
     console.log(`[API] Found ${categoryList.length} categories`);
     
-    const categories = categoryList.map(mapApiCategory);
+    const categories = await Promise.all(categoryList.map(async (apiCat) => {
+      const slug = ((apiCat['slug'] as string) || (apiCat['name'] as string) || "")
+        .toLowerCase()
+        .replace(/\s+/g, "-");
+      const nextCategory = mapApiCategory(apiCat);
+      const productFallbackImage = await fetchFirstProductImageForCategory(slug);
+      nextCategory.image = normalizeImageUrl(nextCategory.image) || productFallbackImage || CATEGORY_IMAGES[slug] || oils;
+      return nextCategory;
+    }));
     console.log(`[API] Mapped categories:`, categories);
     
     return categories;
@@ -134,6 +169,15 @@ export type Product = {
   bestseller: boolean;
   featured: boolean;
   brand: string;
+};
+
+export type HomeBanner = {
+  id: string | number;
+  image_url: string;
+  target_url?: string;
+  title?: string;
+  text?: string;
+  cta?: string;
 };
 
 const slugify = (s: string) =>
@@ -361,6 +405,31 @@ export const getPopularProducts = async (): Promise<Product[]> => {
     .slice()
     .sort((a, b) => b.reviewCount - a.reviewCount)
     .slice(0, 12);
+};
+
+export const getHomeBanners = async (): Promise<HomeBanner[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/catalog?page=1&page_size=10`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+    const data = await response.json();
+    const banners = Array.isArray(data?.banners) ? data.banners : [];
+
+    return banners
+      .filter((banner: any) => banner && banner.image_url)
+      .slice(0, 5)
+      .map((banner: any) => ({
+        id: banner.id ?? banner.slug ?? Math.random().toString(36).slice(2),
+        image_url: banner.image_url,
+        target_url: banner.target_url ?? "",
+        title: banner.title ?? banner.name ?? "Featured",
+        text: banner.text ?? "Fresh picks for your pantry",
+        cta: banner.cta ?? "Shop now",
+      }));
+  } catch (error) {
+    console.error("[HOME] Error loading banners:", error);
+    return [];
+  }
 };
 
 export const getHomeSections = async () => {

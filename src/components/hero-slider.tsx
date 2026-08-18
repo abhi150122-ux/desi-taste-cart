@@ -1,88 +1,108 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import heroOils from "@/assets/hero-oils.jpg";
-import heroGhee from "@/assets/hero-ghee.jpg";
-import heroHealthy from "@/assets/hero-healthy.jpg";
+import { getHomeBanners, type HomeBanner } from "@/lib/catalog";
 
-const slides = [
-  {
-    image: heroOils,
-    eyebrow: "Cold Pressed Oils",
-    title: "Pure Desi Products Delivered to Your Door",
-    text: "Cold pressed oils, authentic grains, dals, spices, snacks and more.",
-    cta: "Shop Oils",
-    slug: "cold-pressed-oils",
-  },
-  {
-    image: heroGhee,
-    eyebrow: "Desi Ghee & Traditional Foods",
-    title: "Authentic Taste From Traditional Recipes",
-    text: "Bilona churned ghee, homemade pickles, papad and mithai made the old way.",
-    cta: "Explore",
-    slug: "ghee-dairy",
-  },
-  {
-    image: heroHealthy,
-    eyebrow: "Healthy Everyday Essentials",
-    title: "Wholesome Grains, Dals, Seeds & Snacks",
-    text: "Unpolished dals, millet attas and roasted snacking you can trust daily.",
-    cta: "Shop Healthy",
-    slug: "healthy-snacks",
-  },
-];
+function getBannerSlug(targetUrl?: string) {
+  if (!targetUrl) return "categories";
+  const trimmed = targetUrl.trim();
+  if (!trimmed) return "categories";
+  return trimmed.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean).at(-1) || "categories";
+}
 
 export function HeroSlider() {
+  const [slides, setSlides] = useState<Array<{
+    image: string;
+    slug: string;
+    targetUrl?: string;
+  }>>([]);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
+    const loadSlides = async () => {
+      const banners = await getHomeBanners();
+      const normalized = banners.slice(0, 5).map((banner: HomeBanner) => ({
+        image: banner.image_url,
+        slug: getBannerSlug(banner.target_url),
+        targetUrl: banner.target_url,
+      }));
+      setSlides(normalized);
+    };
+
+    loadSlides();
+  }, []);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
     const id = setInterval(() => setIndex((i) => (i + 1) % slides.length), 5000);
     return () => clearInterval(id);
-  }, []);
+  }, [slides.length]);
 
   const go = (dir: number) => setIndex((i) => (i + dir + slides.length) % slides.length);
 
+  if (slides.length === 0) return null;
+
+  const renderSlide = (s: { image: string; slug: string; targetUrl?: string }, i: number) => {
+    const slideLink = s.targetUrl && s.targetUrl.trim() ? s.targetUrl.trim() : undefined;
+    const slideContent = (
+      <img
+        src={s.image}
+        alt={s.slug}
+        width={1600}
+        height={640}
+        loading={i === 0 ? "eager" : "lazy"}
+        className="h-full w-full rounded-none object-cover"
+      />
+    );
+
+    if (!slideLink) {
+      return (
+        <div
+          key={`${s.slug}-${i}`}
+          className={`absolute inset-0 p-3 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        >
+          {slideContent}
+        </div>
+      );
+    }
+
+    if (/^https?:\/\//i.test(slideLink)) {
+      return (
+        <a
+          key={`${s.slug}-${i}`}
+          href={slideLink}
+          target="_blank"
+          rel="noreferrer"
+          className={`absolute inset-0 block p-3 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        >
+          {slideContent}
+        </a>
+      );
+    }
+
+    const normalizedLink = slideLink.startsWith("/") ? slideLink : `/${slideLink}`;
+    return (
+      <Link
+        key={`${s.slug}-${i}`}
+        to={normalizedLink as any}
+        className={`absolute inset-0 block p-3 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      >
+        {slideContent}
+      </Link>
+    );
+  };
+
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-accent/25 bg-card shadow-[var(--shadow-card)]">
-      <div className="relative h-[260px] w-full sm:h-[320px] md:h-[400px]">
-        {slides.map((s, i) => (
-          <div
-            key={s.eyebrow}
-            className={`absolute inset-0 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}
-          >
-            <img
-              src={s.image}
-              alt={s.eyebrow}
-              width={1600}
-              height={640}
-              loading={i === 0 ? "eager" : "lazy"}
-              className="size-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
-            <div className="absolute inset-0 flex items-center">
-              <div className="max-w-xl px-6 sm:px-10 md:px-14">
-                <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">{s.eyebrow}</p>
-                <h1 className="mt-2 text-2xl leading-tight font-bold text-white sm:text-4xl md:text-5xl">{s.title}</h1>
-                <p className="mt-3 max-w-md text-sm text-white/80 sm:text-base">{s.text}</p>
-                <Link
-                  to="/category/$slug"
-                  params={{ slug: s.slug }}
-                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-lift)] transition-transform hover:scale-105"
-                >
-                  {s.cta}
-                  <ChevronRight className="size-4" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        ))}
+    <section className="relative overflow-hidden border border-accent/25 bg-card p-3 shadow-[var(--shadow-card)]">
+      <div className="relative h-[260px] w-full overflow-hidden bg-transparent sm:h-[320px] md:h-[400px]">
+        {slides.map(renderSlide)}
       </div>
 
       <button
         type="button"
         aria-label="Previous slide"
         onClick={() => go(-1)}
-        className="absolute top-1/2 left-3 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-card/85 shadow backdrop-blur hover:bg-card"
+        className="absolute top-1/2 left-6 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-card/85 shadow backdrop-blur hover:bg-card"
       >
         <ChevronLeft className="size-4" />
       </button>
@@ -90,15 +110,15 @@ export function HeroSlider() {
         type="button"
         aria-label="Next slide"
         onClick={() => go(1)}
-        className="absolute top-1/2 right-3 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-card/85 shadow backdrop-blur hover:bg-card"
+        className="absolute top-1/2 right-6 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-card/85 shadow backdrop-blur hover:bg-card"
       >
         <ChevronRight className="size-4" />
       </button>
 
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
+      <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-2">
         {slides.map((s, i) => (
           <button
-            key={s.eyebrow}
+            key={`${s.slug}-${i}-dot`}
             type="button"
             aria-label={`Go to slide ${i + 1}`}
             onClick={() => setIndex(i)}
