@@ -1,49 +1,117 @@
 import { useState, useEffect } from "react";
-import { Link } from "@tanstack/react-router";
-import { ChevronDown, Leaf, MapPin, Menu, ShoppingCart, User, X } from "lucide-react";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { ChevronDown, MapPin, Menu, ShoppingCart, User, X } from "lucide-react";
 import { SearchBar } from "./search-bar";
-import { megaMenu, getCategories, type Category } from "@/lib/catalog";
-import { useShop } from "@/context/shop";
+import { getCategories, type Category } from "@/lib/catalog";
+import { useShop, type Address } from "@/context/shop";
 import { inr } from "@/lib/format";
 
+const LOCATION_PERMISSION_KEY = "jdp-location-permission-denied";
+
+const formatAddress = (address: Address): string => {
+  const locality = [address.city, address.pincode].filter(Boolean).join(" ");
+  return [address.house, address.street, locality].filter(Boolean).join(", ");
+};
+
+const fetchCurrentLocation = async (): Promise<string | null> => {
+  if (typeof window === "undefined" || !navigator.geolocation) return null;
+  if (window.localStorage.getItem(LOCATION_PERMISSION_KEY) === "true") return null;
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const query = new URLSearchParams({
+            format: "jsonv2",
+            lat: String(coords.latitude),
+            lon: String(coords.longitude),
+          });
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${query.toString()}`);
+          if (!response.ok) return resolve(null);
+          const data = await response.json() as { address?: Record<string, string> };
+          const address = data.address ?? {};
+          const locality = address.city || address.town || address.village || address.suburb || address.county;
+          const location = [locality, address.postcode].filter(Boolean).join(" ");
+          resolve(location || null);
+        } catch {
+          resolve(null);
+        }
+      },
+      () => {
+        window.localStorage.setItem(LOCATION_PERMISSION_KEY, "true");
+        resolve(null);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+    );
+  });
+};
+
 export function Header() {
-  const { cartCount, totals, user } = useShop();
+  const { cartCount, totals, user, addresses, hydrated } = useShop();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [menuOpen, setMenuOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [deliveryLocation, setDeliveryLocation] = useState<string | null>(null);
+  const topCategories = [...categories]
+    .sort((a, b) => (b.products_count ?? 0) - (a.products_count ?? 0))
+    .slice(0, 5);
 
   useEffect(() => {
     getCategories().then(setCategories);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!hydrated) {
+      return () => {
+        active = false;
+      };
+    }
+
+    const savedAddress = addresses[0];
+
+    if (savedAddress) {
+      setDeliveryLocation(formatAddress(savedAddress));
+      return () => {
+        active = false;
+      };
+    }
+
+    setDeliveryLocation(null);
+    fetchCurrentLocation().then((location) => {
+      if (active) setDeliveryLocation(location);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [addresses, hydrated]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-accent/25 bg-background/95 backdrop-blur">
       <div className="mx-auto max-w-7xl px-4">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 md:flex md:gap-6">
           <Link to="/" className="flex min-w-0 items-center gap-2">
-            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground">
-              <Leaf className="size-5" />
-            </span>
-            <span className="min-w-0">
-              <span className="font-display block truncate text-base leading-tight font-bold text-primary sm:text-lg">
-                Jain Desi and Pure
-              </span>
-              <span className="hidden text-[11px] text-muted-foreground sm:block">
-                Pure Desi Taste, Naturally Better
-              </span>
-            </span>
+            <img
+              src="https://admin.jaindesipure.co.in/storage/categories/logo.jpg"
+              alt="Jain Desi and Pure"
+              className="h-[120px] w-[120px] shrink-0 rounded-2xl object-cover ring-1 ring-black/10"
+            />
           </Link>
 
-          <button
-            type="button"
-            className="hidden shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-left text-xs lg:flex"
-          >
-            <MapPin className="size-4 text-primary" />
-            <span>
-              <span className="block font-semibold">Delivering to</span>
-              <span className="block text-muted-foreground">Indore 452001</span>
-            </span>
-            <ChevronDown className="size-3" />
-          </button>
+          {deliveryLocation && (
+            <button
+              type="button"
+              className="hidden shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-left text-xs lg:flex"
+            >
+              <MapPin className="size-4 text-primary" />
+              <span>
+                <span className="block font-semibold">Delivering to</span>
+                <span className="block text-muted-foreground">{deliveryLocation}</span>
+              </span>
+              <ChevronDown className="size-3" />
+            </button>
+          )}
 
           <div className="hidden min-w-0 flex-1 md:block">
             <SearchBar />
@@ -85,30 +153,22 @@ export function Header() {
         </div>
 
         <nav className="hidden items-center gap-6 border-t border-accent/20 py-2.5 text-sm font-medium md:flex">
-          {megaMenu.map((group) => (
-            <div key={group.title} className="group relative">
+          {topCategories.map((category) => {
+            const categoryPath = `/category/${category.slug}`;
+            const isActive = pathname === categoryPath || pathname.startsWith(`${categoryPath}/`);
+
+            return (
+            <div key={category.id} className="group relative">
               <Link
                 to="/category/$slug"
-                params={{ slug: group.slug }}
-                className="flex items-center gap-1 py-1.5 hover:text-primary"
+                params={{ slug: category.slug }}
+                className={`flex items-center gap-1 border-b-2 py-1.5 transition-colors ${isActive ? "border-primary text-primary" : "border-transparent hover:border-primary/50 hover:text-primary"}`}
               >
-                {group.title}
-                <ChevronDown className="size-3" />
+                {category.name}
               </Link>
-              <div className="invisible absolute top-full left-0 z-50 w-56 rounded-2xl border bg-popover p-2 opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100">
-                {group.links.map((l) => (
-                  <Link
-                    key={l}
-                    to="/search"
-                    search={{ q: l }}
-                    className="block rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  >
-                    {l}
-                  </Link>
-                ))}
-              </div>
             </div>
-          ))}
+            );
+          })}
           <Link to="/categories" className="ml-auto text-primary hover:underline">
             All Categories
           </Link>

@@ -12,6 +12,7 @@ import ghee from "@/assets/cat-ghee.jpg";
 import cookies from "@/assets/cat-cookies.jpg";
 
 const API_BASE_URL = "https://admin.jaindesipure.co.in/api/v1";
+const API_ORIGIN = new URL(API_BASE_URL).origin;
 
 export const CATEGORY_IMAGES: Record<string, string> = {
   "cold-pressed-oils": oils,
@@ -44,12 +45,20 @@ export type Category = {
   slug: string;
   description: string;
   image: string;
+  products_count?: number;
 };
 
-const normalizeImageUrl = (value: unknown): string => {
+export const normalizeImageUrl = (value: unknown): string => {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : "";
+  if (!trimmed) return "";
+  if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) return trimmed;
+
+  try {
+    return new URL(trimmed, API_ORIGIN).toString();
+  } catch {
+    return trimmed;
+  }
 };
 
 const fetchFirstProductImageForCategory = async (categorySlug: string): Promise<string> => {
@@ -85,6 +94,7 @@ const mapApiCategory = (apiCat: ApiCategory): Category => {
     slug: slug,
     description: (apiCat['description'] as string) || "",
     image: normalizeImageUrl(apiCat['image_url'] ?? apiCat['image']) || CATEGORY_IMAGES[slug] || oils,
+    products_count: Number(apiCat['products_count'] ?? 0),
   };
 };
 
@@ -197,6 +207,8 @@ const mapApiProduct = (apiProduct: ApiProduct, categoryName: string = ""): Produ
                (apiProduct['product_name'] as string) || 
                (apiProduct['title'] as string) || "");
   const price = Number(
+    (apiProduct['display_price'] as any) ||
+    (apiProduct['discount_price'] as any) ||
     (apiProduct['price'] as any) || 
     (apiProduct['selling_price'] as any) || 
     (apiProduct['sale_price'] as any) || 0

@@ -24,6 +24,7 @@ function SignupPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", mobile: "", email: "", password: "", confirm: "" });
   const [agree, setAgree] = useState(false);
+  const [signingUp, setSigningUp] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +42,7 @@ function SignupPage() {
     }
 
     try {
+      setSigningUp(true);
       const result = await apiRegisterCustomer({
         name: form.name,
         full_name: form.name,
@@ -71,6 +73,8 @@ function SignupPage() {
       navigate({ to: "/account" });
     } catch (error: any) {
       toast.error(error?.message || "Registration failed. Please try again.");
+    } finally {
+      setSigningUp(false);
     }
   };
 
@@ -113,8 +117,8 @@ function SignupPage() {
               I agree to Terms &amp; Conditions
             </label>
 
-            <button type="submit" className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground">
-              Create Account
+            <button type="submit" disabled={signingUp} className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60">
+              {signingUp ? "Creating account..." : "Create Account"}
             </button>
           </form>
 

@@ -1,14 +1,26 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Heart, LogOut, MapPin, Package, Ticket, User } from "lucide-react";
+import { useState } from "react";
+import { Heart, LogOut, MapPin, Package, User } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
-import { useShop } from "@/context/shop";
+import { useShop, type Address } from "@/context/shop";
+
+const emptyAddress: Omit<Address, "id"> = {
+  fullName: "",
+  mobile: "",
+  house: "",
+  street: "",
+  landmark: "",
+  city: "",
+  state: "",
+  pincode: "",
+};
 
 export const Route = createFileRoute("/account")({
   head: () => ({
     meta: [
       { title: "My Account — Jain Desi and Pure" },
-      { name: "description", content: "Manage your profile, orders, addresses, wishlist and coupons." },
+      { name: "description", content: "Manage your profile, orders, addresses and wishlist." },
       { property: "og:title", content: "My Account — Jain Desi and Pure" },
       { property: "og:description", content: "Your Jain Desi and Pure account dashboard." },
       { property: "og:type", content: "website" },
@@ -19,8 +31,11 @@ export const Route = createFileRoute("/account")({
 });
 
 function AccountPage() {
-  const { user, logout, orders, addresses, wishlist } = useShop();
+  const { user, logout, orders, addresses, wishlist, addAddress } = useShop();
   const navigate = useNavigate();
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressForm, setAddressForm] = useState(emptyAddress);
+  const [savingAddress, setSavingAddress] = useState(false);
 
   if (!user) {
     return (
@@ -80,35 +95,88 @@ function AccountPage() {
           </Link>
 
           <section className="rounded-2xl border bg-card p-5 lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <MapPin className="size-4 text-primary" />
-              <h2 className="font-bold">Saved Addresses</h2>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <MapPin className="size-4 text-primary" />
+                <h2 className="font-bold">Saved Addresses</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddressForm((visible) => !visible)}
+                className="shrink-0 rounded-xl border border-primary/40 px-3 py-2 text-xs font-semibold text-primary"
+              >
+                {showAddressForm ? "Cancel" : "Add New Address"}
+              </button>
             </div>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              {addresses.map((a) => (
+              {addresses.length > 0 ? addresses.map((a) => (
                 <li key={a.id} className="rounded-xl bg-secondary/60 p-3">
                   <span className="font-semibold text-foreground">{a.fullName}</span> · {a.house}, {a.street},{" "}
                   {a.city}, {a.state} — {a.pincode}
                 </li>
-              ))}
+              )) : <li>No saved addresses yet.</li>}
             </ul>
-          </section>
+            {showAddressForm && (
+              <form
+                className="mt-4 grid gap-3 sm:grid-cols-2"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  if (!addressForm.fullName || !addressForm.mobile || !addressForm.house || !addressForm.street || !addressForm.city || !addressForm.state || !addressForm.pincode) {
+                    toast.error("Please fill all required address fields");
+                    return;
+                  }
+                  if (!/^\d{10}$/.test(addressForm.mobile)) {
+                    toast.error("Enter a valid 10 digit mobile number");
+                    return;
+                  }
+                  if (!/^\d{6}$/.test(addressForm.pincode)) {
+                    toast.error("Enter a valid 6 digit pincode");
+                    return;
+                  }
 
-          <section className="rounded-2xl border bg-card p-5">
-            <div className="flex items-center gap-2">
-              <Ticket className="size-4 text-primary" />
-              <h2 className="font-bold">Coupons</h2>
-            </div>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li className="rounded-xl border border-dashed border-primary/50 p-3">
-                <p className="font-bold text-primary">JAIN100</p>
-                <p className="text-xs text-muted-foreground">₹100 off on orders above ₹999</p>
-              </li>
-              <li className="rounded-xl border border-dashed border-primary/50 p-3">
-                <p className="font-bold text-primary">PURE50</p>
-                <p className="text-xs text-muted-foreground">₹50 off on orders above ₹499</p>
-              </li>
-            </ul>
+                  try {
+                    setSavingAddress(true);
+                    await addAddress(addressForm);
+                    setAddressForm(emptyAddress);
+                    setShowAddressForm(false);
+                    toast.success("Address saved");
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Failed to save address");
+                  } finally {
+                    setSavingAddress(false);
+                  }
+                }}
+              >
+                {([
+                  ["fullName", "Full name"],
+                  ["mobile", "Mobile number"],
+                  ["house", "House / flat / street"],
+                  ["street", "Area"],
+                  ["landmark", "Landmark"],
+                  ["city", "City"],
+                  ["state", "State"],
+                  ["pincode", "Pincode"],
+                ] as const).map(([key, label]) => (
+                  <label key={key} className="grid gap-1 text-xs font-semibold">
+                    {label}{!["landmark"].includes(key) && " *"}
+                    <input
+                      value={addressForm[key]}
+                      onChange={(event) => setAddressForm((current) => ({ ...current, [key]: event.target.value }))}
+                      required={key !== "landmark"}
+                      inputMode={key === "mobile" || key === "pincode" ? "numeric" : undefined}
+                      className="rounded-xl border bg-background px-3 py-2.5 text-sm font-normal outline-none focus:border-primary"
+                    />
+                  </label>
+                ))}
+                <button
+                  type="submit"
+                  disabled={savingAddress}
+                  className="sm:col-span-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  {savingAddress ? "Saving..." : "Save Address"}
+                </button>
+              </form>
+            )}
           </section>
 
           <section className="rounded-2xl border bg-card p-5 lg:col-span-3">

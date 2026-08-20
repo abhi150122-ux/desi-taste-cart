@@ -29,6 +29,7 @@ function LoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetOtp, setResetOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -39,6 +40,7 @@ function LoginPage() {
     }
 
     try {
+      setLoginLoading(true);
       const payload = id.includes("@")
         ? { email: id, password }
         : { mobile: id, phone: id, password };
@@ -64,6 +66,8 @@ function LoginPage() {
       navigate({ to: "/account" });
     } catch (error: any) {
       toast.error(error?.message || "Login failed. Please try again.");
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -164,8 +168,8 @@ function LoginPage() {
                     className="mt-1 w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                 </label>
-                <button type="submit" className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground">
-                  Login
+                <button type="submit" disabled={loginLoading} className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60">
+                  {loginLoading ? "Logging in..." : "Login"}
                 </button>
               </form>
 

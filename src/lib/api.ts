@@ -168,6 +168,16 @@ export const apiVerifyPayment = (payload: Record<string, unknown>) =>
     body: JSON.stringify(payload),
   });
 
+export type DeliveryFeeResponse = {
+  subtotal: number;
+  delivery_fee: number;
+  grand_total: number;
+  free_delivery: boolean;
+  threshold: number | null;
+  amount: number | null;
+  message: string;
+};
+
 export const apiDeliveryFee = (payload?: Record<string, unknown>) => {
   const params = new URLSearchParams();
   if (payload) {
@@ -179,5 +189,5 @@ export const apiDeliveryFee = (payload?: Record<string, unknown>) => {
   }
 
   const query = params.toString();
-  return apiRequest(`/delivery/fee${query ? `?${query}` : ""}`);
+  return apiRequest<DeliveryFeeResponse>(`/delivery/fee${query ? `?${query}` : ""}`);
 };

@@ -38,6 +38,7 @@ function CheckoutPage() {
   const [showForm, setShowForm] = useState(addresses.length === 0);
   const [form, setForm] = useState(empty);
   const [payment, setPayment] = useState(payments[0]!);
+  const [savingAddress, setSavingAddress] = useState(false);
   const [placing, setPlacing] = useState(false);
 
   if (cartItems.length === 0) {
@@ -74,6 +75,7 @@ function CheckoutPage() {
     }
 
     try {
+      setSavingAddress(true);
       const saved = await addAddress(form);
       setSelected(saved.id);
       setShowForm(false);
@@ -81,6 +83,8 @@ function CheckoutPage() {
       toast.success("Address saved");
     } catch (error: any) {
       toast.error(error?.message || "Failed to save address");
+    } finally {
+      setSavingAddress(false);
     }
   };
 
@@ -175,9 +179,10 @@ function CheckoutPage() {
                   <button
                     type="button"
                     onClick={saveAddress}
-                    className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground sm:col-span-2"
+                    disabled={savingAddress}
+                    className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60 sm:col-span-2"
                   >
-                    Save Address
+                    {savingAddress ? "Saving..." : "Save Address"}
                   </button>
                 </div>
               )}

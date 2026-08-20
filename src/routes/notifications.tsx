@@ -30,6 +30,7 @@ function NotificationsPage() {
   const { user } = useShop();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [markingRead, setMarkingRead] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) {
@@ -54,6 +55,7 @@ function NotificationsPage() {
 
   const markRead = async (notificationId: number | string) => {
     try {
+      setMarkingRead(String(notificationId));
       await apiMarkNotificationRead(notificationId);
       setItems((current) =>
         current.map((item) =>
@@ -62,6 +64,8 @@ function NotificationsPage() {
       );
     } catch (error) {
       console.error("Failed to mark notification as read", error);
+    } finally {
+      setMarkingRead(null);
     }
   };
 
@@ -100,9 +104,10 @@ function NotificationsPage() {
                       <button
                         type="button"
                         onClick={() => markRead(item.id)}
-                        className="rounded-full border border-primary px-3 py-1 text-[10px] font-semibold uppercase text-primary"
+                        disabled={markingRead === String(item.id)}
+                        className="rounded-full border border-primary px-3 py-1 text-[10px] font-semibold uppercase text-primary disabled:opacity-60"
                       >
-                        Mark read
+                        {markingRead === String(item.id) ? "Saving..." : "Mark read"}
                       </button>
                     )}
                   </div>

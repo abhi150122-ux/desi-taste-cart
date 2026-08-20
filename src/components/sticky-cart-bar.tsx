@@ -10,10 +10,10 @@ export function StickyCartBar() {
   if (cartCount === 0 || pathname.startsWith("/cart") || pathname.startsWith("/checkout")) return null;
 
   return (
-    <div className="fixed inset-x-3 bottom-16 z-50 md:hidden">
+    <div className="fixed inset-x-3 bottom-16 z-50 md:inset-x-auto md:right-6 md:bottom-6">
       <Link
         to="/cart"
-        className="flex items-center justify-between rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-[var(--shadow-lift)]"
+        className="flex items-center justify-between rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-[var(--shadow-lift)] md:min-w-[220px]"
       >
         <span className="text-sm font-semibold">
           {cartCount} {cartCount === 1 ? "item" : "items"} <span className="opacity-70">|</span> {inr(totals.subtotal)}

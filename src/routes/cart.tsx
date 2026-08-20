@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,8 +20,7 @@ export const Route = createFileRoute("/cart")({
 });
 
 function CartPage() {
-  const { cartItems, setQty, removeFromCart, totals, applyCoupon, removeCoupon, coupon } = useShop();
-  const [code, setCode] = useState("");
+  const { cartItems, setQty, removeFromCart, totals } = useShop();
 
   if (cartItems.length === 0) {
     return (
@@ -118,38 +116,6 @@ function CartPage() {
 
           <aside className="h-fit space-y-4 rounded-2xl border bg-card p-5 lg:sticky lg:top-40">
             <h2 className="text-base font-bold">Order Summary</h2>
-
-            <div className="space-y-2">
-              {coupon ? (
-                <div className="flex items-center justify-between rounded-xl bg-primary-soft px-3 py-2 text-sm">
-                  <span className="font-semibold text-primary">{coupon} applied</span>
-                  <button type="button" onClick={removeCoupon} className="text-xs underline">
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder="Coupon code (JAIN100)"
-                    aria-label="Coupon code"
-                    className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const res = applyCoupon(code);
-                      res.ok ? toast.success(res.message) : toast.error(res.message);
-                    }}
-                    className="shrink-0 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
-                  >
-                    Apply
-                  </button>
-                </div>
-              )}
-              <p className="text-[11px] text-muted-foreground">Use JAIN100 for ₹100 off on orders above ₹999.</p>
-            </div>
 
             <dl className="space-y-2 border-t pt-4 text-sm">
               <Row label="Subtotal" value={inr(totals.subtotal)} />

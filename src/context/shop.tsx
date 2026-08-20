@@ -14,16 +14,28 @@ import {
   apiCreateOrder,
   apiCustomerProfile,
   apiDeleteCartItem,
+  apiDeliveryFee,
   apiGetCustomerAddresses,
   apiGetCustomerCart,
   apiGetCustomerOrders,
   apiUpdateCartItem,
   setAuthToken,
 } from "@/lib/api";
-import { getProducts, productByIdSync, type Product } from "@/lib/catalog";
-import { COUPONS, DELIVERY_FEE, FREE_DELIVERY_ABOVE, TAX_RATE } from "@/lib/format";
+import { getProducts, normalizeImageUrl, productByIdSync, type Product } from "@/lib/catalog";
+import { COUPONS, TAX_RATE } from "@/lib/format";
 
-export type CartLine = { productId: string; qty: number };
+export type CartLine = {
+  productId: string;
+  qty: number;
+  unitPrice?: number;
+  product?: {
+    name?: string;
+    slug?: string;
+    unit?: string;
+    price?: number;
+    image?: string;
+  };
+};
 export type Address = {
   id: string;
   fullName: string;
@@ -94,6 +106,33 @@ const normalizeUser = (entry: any): User => ({
   email: entry?.email || "customer@jaindesiandpure.in",
   mobile: entry?.mobile || entry?.phone || entry?.phone_number || "",
 });
+
+const fallbackProductFromCartLine = (line: CartLine): Product | null => {
+  const snapshot = line.product;
+  const price = Number(line.unitPrice ?? snapshot?.price ?? 0);
+  if (!snapshot?.name && price <= 0) return null;
+
+  return {
+    id: line.productId,
+    name: snapshot?.name || "Product",
+    slug: snapshot?.slug || line.productId,
+    category: "",
+    categoryName: "",
+    description: "",
+    price,
+    mrp: price,
+    discount: 0,
+    unit: snapshot?.unit || "",
+    image: normalizeImageUrl(snapshot?.image),
+    stock: 0,
+    rating: 0,
+    reviewCount: 0,
+    tags: [],
+    bestseller: false,
+    featured: false,
+    brand: "Jain Desi and Pure",
+  };
+};
 
 const normalizeOrder = (entry: any, fallback?: Order): Order => {
   const address = entry?.address ? normalizeAddress(entry.address, fallback?.address) : fallback?.address ?? {
@@ -182,6 +221,8 @@ const ShopContext = createContext<ShopContextValue | null>(null);
 export function ShopProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ShopState>(initialState);
   const [hydrated, setHydrated] = useState(false);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState(0);
 
   const patch = useCallback((fn: (s: ShopState) => ShopState) => setState((s) => fn(s)), []);
 
@@ -207,6 +248,14 @@ export function ShopProvider({ children }: { children: ReactNode }) {
           .map((item: any) => ({
             productId: String(item?.product_id ?? item?.productId ?? item?.id ?? ""),
             qty: Number(item?.quantity ?? item?.qty ?? 1),
+            unitPrice: Number(item?.unit_price ?? item?.product?.price ?? 0),
+            product: item?.product ? {
+              name: item.product.name,
+              slug: item.product.slug,
+              unit: item.product.unit,
+              price: Number(item.product.price ?? 0),
+              image: normalizeImageUrl(item.product.image_url),
+            } : undefined,
           }))
           .filter((line) => Boolean(line.productId) && Number(line.qty) > 0),
       }));
@@ -216,7 +265,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [patch]);
 
   useEffect(() => {
-    getProducts().catch((err) => console.error("Failed to load products:", err));
+    getProducts()
+      .then(() => setCatalogLoaded(true))
+      .catch((err) => console.error("Failed to load products:", err));
   }, []);
 
   useEffect(() => {
@@ -247,11 +298,17 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     () =>
       state.cart
         .map((line) => {
-          const product = productByIdSync(String(line.productId));
+          const catalogProduct = productByIdSync(String(line.productId));
+          const product = catalogProduct
+            ? {
+                ...catalogProduct,
+                image: catalogProduct.image || normalizeImageUrl(line.product?.image),
+              }
+            : fallbackProductFromCartLine(line);
           return product ? { product, qty: Number(line.qty) || 0 } : null;
         })
         .filter((v): v is { product: Product; qty: number } => v !== null && v.qty > 0),
-    [state.cart],
+    [state.cart, catalogLoaded],
   );
 
   const totals = useMemo(() => {
@@ -260,7 +317,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     const discount = mrpTotal - subtotal;
     const c = state.coupon ? COUPONS[state.coupon] : undefined;
     const couponDiscount = c && subtotal >= c.minimum ? c.amount : 0;
-    const delivery = subtotal === 0 || subtotal >= FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE;
+    const delivery = subtotal > 0 ? deliveryFee : 0;
     const taxable = Math.max(subtotal - couponDiscount, 0);
     const tax = Math.round(taxable * TAX_RATE);
     return {
@@ -273,7 +330,32 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       total: Math.max(taxable + delivery + tax, 0),
       savings: discount + couponDiscount,
     };
-  }, [cartItems, state.coupon]);
+  }, [cartItems, state.coupon, deliveryFee]);
+
+  useEffect(() => {
+    let active = true;
+    const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.qty, 0);
+
+    if (subtotal <= 0) {
+      setDeliveryFee(0);
+      return () => {
+        active = false;
+      };
+    }
+
+    apiDeliveryFee({ subtotal })
+      .then((response) => {
+        if (active) setDeliveryFee(Number(response.delivery_fee) || 0);
+      })
+      .catch((error) => {
+        console.error("Failed to load delivery fee:", error);
+        if (active) setDeliveryFee(0);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [cartItems]);
 
   const value: ShopContextValue = {
     ...state,
