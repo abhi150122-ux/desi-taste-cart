@@ -55,7 +55,11 @@ export const normalizeImageUrl = (value: unknown): string => {
   if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) return trimmed;
 
   try {
-    return new URL(trimmed, API_ORIGIN).toString();
+    const imageUrl = new URL(trimmed, API_ORIGIN);
+    if (imageUrl.origin === API_ORIGIN && imageUrl.pathname.startsWith("/storage/")) {
+      imageUrl.pathname = `/media/${imageUrl.pathname.slice("/storage/".length)}`;
+    }
+    return imageUrl.toString();
   } catch {
     return trimmed;
   }
