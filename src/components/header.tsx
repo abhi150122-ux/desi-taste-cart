@@ -93,7 +93,7 @@ export function Header() {
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 md:flex md:gap-6">
           <Link to="/" className="flex min-w-0 items-center gap-2">
             <img
-              src="https://admin.jaindesipure.co.in/media/categories/logo.jpg?v=20260905"
+              src="https://admin.jaindesipure.co.in/media/categories/logo.jpg"
               alt="Jain Desi and Pure"
               className="h-[120px] w-[120px] shrink-0 rounded-2xl object-cover ring-1 ring-black/10"
             />

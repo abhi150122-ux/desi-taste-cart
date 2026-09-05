@@ -13,7 +13,6 @@ import cookies from "@/assets/cat-cookies.jpg";
 
 const API_BASE_URL = "https://admin.jaindesipure.co.in/api/v1";
 const API_ORIGIN = new URL(API_BASE_URL).origin;
-const IMAGE_REQUEST_VERSION = Date.now().toString();
 
 export const CATEGORY_IMAGES: Record<string, string> = {
   "cold-pressed-oils": oils,
@@ -59,9 +58,6 @@ export const normalizeImageUrl = (value: unknown): string => {
     const imageUrl = new URL(trimmed, API_ORIGIN);
     if (imageUrl.origin === API_ORIGIN && imageUrl.pathname.startsWith("/storage/")) {
       imageUrl.pathname = `/media/${imageUrl.pathname.slice("/storage/".length)}`;
-    }
-    if (imageUrl.origin === API_ORIGIN) {
-      imageUrl.searchParams.set("v", IMAGE_REQUEST_VERSION);
     }
     return imageUrl.toString();
   } catch {
