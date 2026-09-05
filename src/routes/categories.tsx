@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
-import { getCategories, categoryCountsMap, type Category } from "@/lib/catalog";
+import { getCategories, type Category } from "@/lib/catalog";
 import { PageLoader } from "@/components/page-loader";
 import { RetryImage } from "@/components/retry-image";
 
@@ -24,7 +24,6 @@ export const Route = createFileRoute("/categories")({
 
 function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
@@ -33,9 +32,8 @@ function CategoriesPage() {
       setIsLoading(true);
       setLoadError(false);
       try {
-        const [cats, counts] = await Promise.all([getCategories(), categoryCountsMap()]);
+        const cats = await getCategories();
         setCategories(cats);
-        setCategoryCounts(counts);
       } catch (error) {
         console.error("[CATEGORIES] Error loading categories:", error);
         setLoadError(true);
@@ -98,7 +96,7 @@ function CategoriesPage() {
                 className="aspect-square w-full rounded-xl object-cover"
               />
               <p className="mt-2 text-xs font-semibold">{c.name}</p>
-              <p className="text-[11px] text-muted-foreground">{categoryCounts[c.slug] ?? 0} items</p>
+              <p className="text-[11px] text-muted-foreground">{c.products_count ?? 0} items</p>
             </Link>
           ))}
         </div>
