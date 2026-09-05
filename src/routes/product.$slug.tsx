@@ -4,7 +4,7 @@ import { Heart, Minus, Plus, ShieldCheck, Star, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { ProductSlider } from "@/components/product-slider";
-import { productBySlug, productsByCategory, sampleReviews, type Product } from "@/lib/catalog";
+import { productById, productBySlug, productsByCategory, sampleReviews, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 import { useShop } from "@/context/shop";
 import { PageLoader } from "@/components/page-loader";
@@ -53,13 +53,20 @@ function ProductPage() {
   useEffect(() => {
     const loadProduct = async () => {
       setIsLoading(true);
-      const prod = await productBySlug(slug);
-      setProduct(prod || null);
-      if (prod) {
-        const relatedProducts = await productsByCategory(prod.category);
-        setRelated(relatedProducts.filter((p) => p.slug !== slug).slice(0, 8));
+      try {
+        const prod = await productBySlug(slug);
+        setProduct(prod || null);
+        if (prod) {
+          const relatedProducts = await productsByCategory(prod.category);
+          setRelated(relatedProducts.filter((p) => p.slug !== slug).slice(0, 8));
+        }
+      } catch (error) {
+        console.error(`Error loading product ${slug}:`, error);
+        setProduct(null);
+        setRelated([]);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     loadProduct();
   }, [slug]);
