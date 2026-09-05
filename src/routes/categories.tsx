@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { getCategories, categoryCountsMap, type Category } from "@/lib/catalog";
 import { PageLoader } from "@/components/page-loader";
+import { RetryImage } from "@/components/retry-image";
 
 export const Route = createFileRoute("/categories")({
   head: () => ({
@@ -88,7 +89,7 @@ function CategoriesPage() {
               params={{ slug: c.slug }}
               className="group rounded-2xl border border-accent/25 bg-card p-3 text-center transition-all hover:-translate-y-1 hover:border-primary hover:shadow-[var(--shadow-lift)]"
             >
-              <img
+              <RetryImage
                 src={c.image}
                 alt={c.name}
                 width={200}

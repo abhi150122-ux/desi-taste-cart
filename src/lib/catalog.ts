@@ -171,6 +171,11 @@ export type HomePage = {
   nextCategoryPage: number | null;
 };
 
+export type CategoryPage = {
+  category: Category;
+  products: Product[];
+};
+
 const slugify = (s: string) =>
   s
     .toLowerCase()
@@ -280,13 +285,6 @@ export const fetchProductsByCategory = async (
     
     let response = await fetch(url, { cache: "no-store" });
     
-    // If that fails, try the products endpoint
-    if (!response.ok) {
-      url = `${API_BASE_URL}/products?category_slug=${categorySlug}&page=${page}&page_size=${pageSize}`;
-      console.log(`[API] Trying alternate endpoint: ${url}`);
-      response = await fetch(url, { cache: "no-store" });
-    }
-    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -324,8 +322,35 @@ export const fetchProductsByCategory = async (
     return mappedProducts;
   } catch (error) {
     console.error(`[API] Error fetching products for category ${categorySlug}:`, error);
-    return [];
+    throw error;
   }
+};
+
+const categoryPageRequests = new Map<string, Promise<CategoryPage>>();
+
+export const fetchCategoryPage = async (categorySlug: string, pageSize = 100): Promise<CategoryPage> => {
+  const key = `${categorySlug}:${pageSize}`;
+  const existingRequest = categoryPageRequests.get(key);
+  if (existingRequest) return existingRequest;
+
+  const request = fetch(`${API_BASE_URL}/categories/${encodeURIComponent(categorySlug)}/products?page=1&page_size=${pageSize}`, {
+    cache: "no-store",
+  })
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const data = await response.json();
+      const apiCategory = (data?.category ?? {}) as ApiCategory;
+      const category = mapApiCategory(apiCategory);
+      const productList = Array.isArray(data?.products) ? data.products : [];
+      return {
+        category,
+        products: productList.map((product: ApiProduct) => mapApiProduct(product, category.name)),
+      };
+    })
+    .finally(() => categoryPageRequests.delete(key));
+
+  categoryPageRequests.set(key, request);
+  return request;
 };
 
 // Fetch all products from all categories
@@ -368,18 +393,26 @@ export const getProducts = async (_forceRefresh = false): Promise<Product[]> => 
 
 // Product lookup functions
 export const productBySlug = async (slug: string) => {
-  const products = await getProducts();
-  return products.find((p) => p.slug === slug);
+  const response = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(slug)}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  const product = await response.json();
+  const category = product?.category;
+  const categoryName = typeof category === "object" ? category?.name ?? "" : product?.category_name ?? "";
+  return mapApiProduct(product, categoryName);
 };
 
 export const productById = async (id: string) => {
-  const products = await getProducts();
-  return products.find((p) => p.id === id);
+  const response = await fetch(`${API_BASE_URL}/products/id/${encodeURIComponent(id)}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  const product = await response.json();
+  const category = product?.category;
+  const categoryName = typeof category === "object" ? category?.name ?? "" : product?.category_name ?? "";
+  return mapApiProduct(product, categoryName);
 };
 
 export const productsByCategory = async (slug: string) => {
-  const products = await getProducts();
-  return products.filter((p) => p.category === slug);
+  const page = await fetchCategoryPage(slug);
+  return page.products;
 };
 
 export const categoryCountsMap = async (): Promise<Record<string, number>> => {

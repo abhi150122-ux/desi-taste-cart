@@ -5,6 +5,7 @@ import type { Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 import { useShop } from "@/context/shop";
 import { cn } from "@/lib/utils";
+import { RetryImage } from "./retry-image";
 
 export function ProductCard({ product, className }: { product: Product; className?: string }) {
   const { qtyOf, addToCart, setQty, toggleWishlist, inWishlist } = useShop();
@@ -39,7 +40,7 @@ export function ProductCard({ product, className }: { product: Product; classNam
               {product.discount}% OFF
             </span>
           )}
-          <img
+          <RetryImage
             src={product.image}
             alt={product.name}
             width={400}

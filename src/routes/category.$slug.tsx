@@ -1,35 +1,24 @@
 import { useMemo, useState, useEffect } from "react";
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { ProductGrid } from "@/components/product-grid";
-import { categoryBySlug, productsByCategory, type Category, type Product } from "@/lib/catalog";
+import { fetchCategoryPage, type Category, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 import { PageLoader } from "@/components/page-loader";
+import { RetryImage } from "@/components/retry-image";
 
 export const Route = createFileRoute("/category/$slug")({
   loader: async ({ params }) => {
-    try {
-      const category = await categoryBySlug(params.slug);
-      if (!category) {
-        console.warn(`Category not found: ${params.slug}`);
-        throw notFound();
-      }
-      return { name: category.name, description: category.description };
-    } catch (error) {
-      console.error(`Error loading category ${params.slug}:`, error);
-      throw notFound();
-    }
+    return { slug: params.slug };
   },
   head: ({ loaderData }) => {
-    if (!loaderData)
-      return { meta: [{ title: "Category not found — Jain Desi and Pure" }, { name: "robots", content: "noindex" }] };
-    const title = `${loaderData.name} — Jain Desi and Pure`;
+    const title = `${loaderData.slug} — Jain Desi and Pure`;
     return {
       meta: [
         { title },
-        { name: "description", content: loaderData.description },
+        { name: "description", content: "Browse products from Jain Desi and Pure." },
         { property: "og:title", content: title },
-        { property: "og:description", content: loaderData.description },
+        { property: "og:description", content: "Browse products from Jain Desi and Pure." },
         { property: "og:type", content: "website" },
         { name: "twitter:card", content: "summary_large_image" },
       ],
@@ -44,16 +33,25 @@ function CategoryPage() {
   const { slug } = Route.useParams();
   const [category, setCategory] = useState<Category | null>(null);
   const [all, setAll] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      const cat = await categoryBySlug(slug);
-      setCategory(cat || null);
-      const products = await productsByCategory(slug);
-      setAll(products);
-      setIsLoading(false);
+      setLoadError(false);
+      try {
+        const page = await fetchCategoryPage(slug);
+        setCategory(page.category);
+        setAll(page.products);
+      } catch (error) {
+        console.error(`Error loading category ${slug}:`, error);
+        setCategory(null);
+        setAll([]);
+        setLoadError(true);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
   }, [slug]);
@@ -88,12 +86,28 @@ function CategoryPage() {
     }
   }, [all, sort, maxPrice, minRating, inStockOnly, unit]);
 
-  if (isLoading || !category) {
+  if (isLoading) {
     return (
       <SiteLayout>
         <Container>
           <Breadcrumbs items={[{ label: "Loading..." }]} />
           <PageLoader label="Loading category..." />
+        </Container>
+      </SiteLayout>
+    );
+  }
+
+  if (loadError || !category) {
+    return (
+      <SiteLayout>
+        <Container>
+          <Breadcrumbs items={[{ label: "Categories" }, { label: "Unavailable" }]} />
+          <div className="py-10 text-center">
+            <p className="text-muted-foreground">Category products could not be loaded.</p>
+            <button type="button" className="mt-3 text-sm font-semibold text-primary" onClick={() => window.location.reload()}>
+              Try again
+            </button>
+          </div>
         </Container>
       </SiteLayout>
     );
@@ -107,7 +121,7 @@ function CategoryPage() {
         <Breadcrumbs items={[{ label: "Categories" }, { label: category_data.name }]} />
 
         <div className="relative overflow-hidden rounded-3xl border border-accent/25 bg-card">
-          <img
+          <RetryImage
             src={category_data.image}
             alt={category_data.name}
             width={1200}

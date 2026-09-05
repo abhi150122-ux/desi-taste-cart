@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getHomeBanners, type HomeBanner } from "@/lib/catalog";
+import { RetryImage } from "./retry-image";
 
 function getBannerSlug(targetUrl?: string) {
   if (!targetUrl) return "categories";
@@ -52,7 +53,7 @@ export function HeroSlider() {
   const renderSlide = (s: { image: string; slug: string; targetUrl?: string }, i: number) => {
     const slideLink = s.targetUrl && s.targetUrl.trim() ? s.targetUrl.trim() : undefined;
     const slideContent = (
-      <img
+      <RetryImage
         src={s.image}
         alt={s.slug}
         width={1600}

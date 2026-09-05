@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronDown, MapPin, Menu, ShoppingCart, User, X } from "lucide-react";
 import { SearchBar } from "./search-bar";
 import { getCategories, type Category } from "@/lib/catalog";
+import { RetryImage } from "./retry-image";
 import { useShop, type Address } from "@/context/shop";
 import { inr } from "@/lib/format";
 
@@ -92,7 +93,7 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-4">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 md:flex md:gap-6">
           <Link to="/" className="flex min-w-0 items-center gap-2">
-            <img
+            <RetryImage
               src="https://admin.jaindesipure.co.in/media/categories/logo.jpg"
               alt="Jain Desi and Pure"
               className="h-[120px] w-[120px] shrink-0 rounded-2xl object-cover ring-1 ring-black/10"

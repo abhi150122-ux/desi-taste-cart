@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCategories, type Category } from "@/lib/catalog";
+import { RetryImage } from "./retry-image";
 
 export function CategorySlider({
   categories: providedCategories,
@@ -63,7 +64,7 @@ export function CategorySlider({
             className="group w-[21vw] max-w-[112px] shrink-0 text-center sm:w-[104px]"
           >
             <div className="overflow-hidden rounded-2xl border border-accent/25 bg-card p-1.5 transition-all group-hover:-translate-y-1 group-hover:border-primary group-hover:shadow-[var(--shadow-lift)]">
-              <img
+              <RetryImage
                 src={c.image}
                 alt={c.name}
                 width={200}

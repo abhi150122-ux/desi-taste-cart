@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCategories, type Category } from "@/lib/catalog";
+import { RetryImage } from "./retry-image";
 
 export function PromoSlider({ categories: providedCategories }: { categories?: Category[] }) {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -23,7 +24,7 @@ export function PromoSlider({ categories: providedCategories }: { categories?: C
             params={{ slug: category.slug }}
             className="group relative flex w-[78vw] shrink-0 items-center gap-4 overflow-hidden rounded-2xl border border-accent/25 bg-card p-4 shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-lift)] sm:w-[340px]"
           >
-            <img
+            <RetryImage
               src={category.image}
               alt={category.name}
               width={200}

@@ -4,6 +4,7 @@ import { Search, X } from "lucide-react";
 import { searchProducts, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { RetryImage } from "./retry-image";
 
 export function SearchBar({ className, autoFocus }: { className?: string; autoFocus?: boolean }) {
   const [query, setQuery] = useState("");
@@ -87,7 +88,7 @@ export function SearchBar({ className, autoFocus }: { className?: string; autoFo
                     }}
                     className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-secondary"
                   >
-                    <img
+                    <RetryImage
                       src={p.image}
                       alt={p.name}
                       width={40}

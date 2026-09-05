@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { useShop } from "@/context/shop";
 import { inr } from "@/lib/format";
+import { RetryImage } from "@/components/retry-image";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -58,7 +59,7 @@ function CartPage() {
             {cartItems.map(({ product, qty }) => (
               <div key={product.id} className="grid grid-cols-[80px_minmax(0,1fr)] gap-4 rounded-2xl border bg-card p-3">
                 <Link to="/product/$slug" params={{ slug: product.slug }}>
-                  <img
+                  <RetryImage
                     src={product.image}
                     alt={product.name}
                     width={160}

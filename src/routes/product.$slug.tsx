@@ -8,6 +8,7 @@ import { productById, productBySlug, productsByCategory, sampleReviews, type Pro
 import { inr } from "@/lib/format";
 import { useShop } from "@/context/shop";
 import { PageLoader } from "@/components/page-loader";
+import { RetryImage } from "@/components/retry-image";
 
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
@@ -110,7 +111,7 @@ function ProductPage() {
         <div className="grid gap-8 lg:grid-cols-2">
           <div>
             <div className="group overflow-hidden rounded-3xl border border-accent/25 bg-card p-4">
-              <img
+              <RetryImage
                 src={gallery[activeImage]}
                 alt={product.name}
                 width={700}
@@ -127,7 +128,7 @@ function ProductPage() {
                   onClick={() => setActiveImage(i)}
                   className={`size-20 overflow-hidden rounded-xl border-2 ${i === activeImage ? "border-primary" : "border-border"}`}
                 >
-                  <img src={g} alt="" width={80} height={80} loading="lazy" className="size-full object-cover" />
+                  <RetryImage src={g} alt="" width={80} height={80} loading="lazy" className="size-full object-cover" />
                 </button>
               ))}
             </div>

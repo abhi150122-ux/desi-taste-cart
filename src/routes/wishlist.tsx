@@ -6,6 +6,7 @@ import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { useShop } from "@/context/shop";
 import { productById, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
+import { RetryImage } from "@/components/retry-image";
 
 export const Route = createFileRoute("/wishlist")({
   head: () => ({
@@ -65,7 +66,7 @@ function WishlistPage() {
           <div className="mt-6 space-y-3">
             {items.map((p) => (
               <div key={p.id} className="grid grid-cols-[80px_minmax(0,1fr)] gap-4 rounded-2xl border bg-card p-3">
-                <img
+                <RetryImage
                   src={p.image}
                   alt={p.name}
                   width={160}
