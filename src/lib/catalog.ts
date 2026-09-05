@@ -250,7 +250,7 @@ const mapApiProduct = (apiProduct: ApiProduct, categoryName: string = ""): Produ
   return {
     id: String(apiProduct['id'] ?? slugify(name)),
     name,
-    slug: slugify(`${name}-${unit}`),
+    slug: String(apiProduct['slug'] ?? slugify(`${name}-${unit}`)),
     category,
     categoryName: categoryName || categoryLabel || (apiProduct['category_name'] as string) || "",
     description: ((apiProduct['description'] as string) || 
