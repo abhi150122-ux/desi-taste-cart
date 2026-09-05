@@ -108,7 +108,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "https://admin.jaindesipure.co.in/media/categories/logo.jpg", type: "image/jpeg" },
+      { rel: "icon", href: "https://admin.jaindesipure.co.in/media/categories/logo.jpg?v=20260905", type: "image/jpeg" },
     ],
   }),
 

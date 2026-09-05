@@ -40,6 +40,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
+    cache: "no-store",
     headers,
   });
 

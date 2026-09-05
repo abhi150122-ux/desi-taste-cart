@@ -25,14 +25,22 @@ function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const loadCategories = async () => {
       setIsLoading(true);
-      const [cats, counts] = await Promise.all([getCategories(), categoryCountsMap()]);
-      setCategories(cats);
-      setCategoryCounts(counts);
-      setIsLoading(false);
+      setLoadError(false);
+      try {
+        const [cats, counts] = await Promise.all([getCategories(), categoryCountsMap()]);
+        setCategories(cats);
+        setCategoryCounts(counts);
+      } catch (error) {
+        console.error("[CATEGORIES] Error loading categories:", error);
+        setLoadError(true);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadCategories();
@@ -45,6 +53,22 @@ function CategoriesPage() {
           <Breadcrumbs items={[{ label: "Categories" }]} />
           <h1 className="text-2xl font-bold sm:text-3xl">Shop by Category</h1>
           <PageLoader label="Loading categories..." />
+        </Container>
+      </SiteLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SiteLayout>
+        <Container>
+          <Breadcrumbs items={[{ label: "Categories" }]} />
+          <div className="py-10 text-center">
+            <p className="text-muted-foreground">Categories could not be loaded.</p>
+            <button type="button" className="mt-3 text-sm font-semibold text-primary" onClick={() => window.location.reload()}>
+              Try again
+            </button>
+          </div>
         </Container>
       </SiteLayout>
     );

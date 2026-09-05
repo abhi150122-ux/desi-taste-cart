@@ -21,7 +21,7 @@ import {
   apiUpdateCartItem,
   setAuthToken,
 } from "@/lib/api";
-import { getProducts, normalizeImageUrl, productByIdSync, type Product } from "@/lib/catalog";
+import { normalizeImageUrl, type Product } from "@/lib/catalog";
 import { COUPONS, TAX_RATE } from "@/lib/format";
 
 export type CartLine = {
@@ -221,7 +221,6 @@ const ShopContext = createContext<ShopContextValue | null>(null);
 export function ShopProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ShopState>(initialState);
   const [hydrated, setHydrated] = useState(false);
-  const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
 
   const patch = useCallback((fn: (s: ShopState) => ShopState) => setState((s) => fn(s)), []);
@@ -265,12 +264,6 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [patch]);
 
   useEffect(() => {
-    getProducts()
-      .then(() => setCatalogLoaded(true))
-      .catch((err) => console.error("Failed to load products:", err));
-  }, []);
-
-  useEffect(() => {
     try {
       const stored = localStorage.getItem(KEY);
       if (stored) {
@@ -298,17 +291,11 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     () =>
       state.cart
         .map((line) => {
-          const catalogProduct = productByIdSync(String(line.productId));
-          const product = catalogProduct
-            ? {
-                ...catalogProduct,
-                image: catalogProduct.image || normalizeImageUrl(line.product?.image),
-              }
-            : fallbackProductFromCartLine(line);
+          const product = fallbackProductFromCartLine(line);
           return product ? { product, qty: Number(line.qty) || 0 } : null;
         })
         .filter((v): v is { product: Product; qty: number } => v !== null && v.qty > 0),
-    [state.cart, catalogLoaded],
+    [state.cart],
   );
 
   const totals = useMemo(() => {

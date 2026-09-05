@@ -3,17 +3,20 @@ import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCategories, type Category } from "@/lib/catalog";
 
-export function PromoSlider() {
+export function PromoSlider({ categories: providedCategories }: { categories?: Category[] }) {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
+    if (providedCategories) return;
     getCategories().then((items) => setCategories(items.slice(0, 5)));
-  }, []);
+  }, [providedCategories]);
+
+  const visibleCategories = (providedCategories ?? categories).slice(0, 5);
 
   return (
     <section className="py-6">
       <div className="rail -mx-4 gap-4 px-4 pb-2 sm:mx-0 sm:px-0">
-        {categories.map((category) => (
+        {visibleCategories.map((category) => (
           <Link
             key={category.slug}
             to="/category/$slug"

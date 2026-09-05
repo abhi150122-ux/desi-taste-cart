@@ -13,6 +13,7 @@ import cookies from "@/assets/cat-cookies.jpg";
 
 const API_BASE_URL = "https://admin.jaindesipure.co.in/api/v1";
 const API_ORIGIN = new URL(API_BASE_URL).origin;
+const IMAGE_REQUEST_VERSION = Date.now().toString();
 
 export const CATEGORY_IMAGES: Record<string, string> = {
   "cold-pressed-oils": oils,
@@ -59,32 +60,12 @@ export const normalizeImageUrl = (value: unknown): string => {
     if (imageUrl.origin === API_ORIGIN && imageUrl.pathname.startsWith("/storage/")) {
       imageUrl.pathname = `/media/${imageUrl.pathname.slice("/storage/".length)}`;
     }
+    if (imageUrl.origin === API_ORIGIN) {
+      imageUrl.searchParams.set("v", IMAGE_REQUEST_VERSION);
+    }
     return imageUrl.toString();
   } catch {
     return trimmed;
-  }
-};
-
-const fetchFirstProductImageForCategory = async (categorySlug: string): Promise<string> => {
-  try {
-    const url = `${API_BASE_URL}/categories/${categorySlug}/products?page=1&page_size=1`;
-    const response = await fetch(url);
-    if (!response.ok) return "";
-
-    const data = await response.json();
-    const productList = Array.isArray(data?.products)
-      ? data.products
-      : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data)
-          ? data
-          : [];
-
-    const firstProduct = productList[0] ?? null;
-    return normalizeImageUrl(firstProduct?.image_url ?? firstProduct?.image ?? firstProduct?.photo);
-  } catch (error) {
-    console.warn(`[API] Failed to fetch fallback image for ${categorySlug}:`, error);
-    return "";
   }
 };
 
@@ -103,11 +84,11 @@ const mapApiCategory = (apiCat: ApiCategory): Category => {
 };
 
 // Fetch all categories from API
-export const fetchCategories = async (): Promise<Category[]> => {
+export const fetchCategories = async (limit = 30): Promise<Category[]> => {
   try {
-    const url = `${API_BASE_URL}/categories`;
+    const url = `${API_BASE_URL}/categories?limit=${Math.min(30, Math.max(1, limit))}`;
     console.log(`[API] Fetching categories from: ${url}`);
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: "no-store" });
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -131,36 +112,17 @@ export const fetchCategories = async (): Promise<Category[]> => {
     
     console.log(`[API] Found ${categoryList.length} categories`);
     
-    const categories = await Promise.all(categoryList.map(async (apiCat) => {
-      const slug = ((apiCat['slug'] as string) || (apiCat['name'] as string) || "")
-        .toLowerCase()
-        .replace(/\s+/g, "-");
-      const nextCategory = mapApiCategory(apiCat);
-      const productFallbackImage = await fetchFirstProductImageForCategory(slug);
-      nextCategory.image = normalizeImageUrl(nextCategory.image) || productFallbackImage || CATEGORY_IMAGES[slug] || oils;
-      return nextCategory;
-    }));
+    const categories = categoryList.map(mapApiCategory);
     console.log(`[API] Mapped categories:`, categories);
     
     return categories;
   } catch (error) {
     console.error("[API] Error fetching categories:", error);
-    return [];
+    throw error;
   }
 };
 
-// Cached categories
-let cachedCategories: Category[] | null = null;
-let categoriesCacheTime = 0;
-const CATEGORY_CACHE_DURATION = 10 * 60 * 1000;
-
-export const getCategories = async (): Promise<Category[]> => {
-  const now = Date.now();
-  if (cachedCategories && now - categoriesCacheTime < CATEGORY_CACHE_DURATION) return cachedCategories;
-  cachedCategories = await fetchCategories();
-  categoriesCacheTime = now;
-  return cachedCategories;
-};
+export const getCategories = async (limit = 30): Promise<Category[]> => fetchCategories(limit);
 
 export const categoryBySlug = async (slug: string) => {
   const categories = await getCategories();
@@ -196,6 +158,21 @@ export type HomeBanner = {
   title?: string;
   text?: string;
   cta?: string;
+};
+
+export type HomeSection = {
+  title: string;
+  slug: string;
+  items: Product[];
+  productsCount: number;
+};
+
+export type HomePage = {
+  popularProducts: Product[];
+  categories: Category[];
+  sections: HomeSection[];
+  hasMoreCategories: boolean;
+  nextCategoryPage: number | null;
 };
 
 const slugify = (s: string) =>
@@ -236,17 +213,19 @@ const mapApiProduct = (apiProduct: ApiProduct, categoryName: string = ""): Produ
     (apiProduct['reviews_count'] as any) || 
     (apiProduct['num_reviews'] as any) || 0
   );
-  const image = ((apiProduct['image'] as string) || 
+  const image = normalizeImageUrl((apiProduct['image'] as string) || 
                 (apiProduct['image_url'] as string) || 
                 (apiProduct['photo'] as string) || "");
   
   // Category can be: string slug, object with slug, object with id.
   // Some APIs only return category_id, which is not the slug used in frontend routes.
   let category = "";
+  let categoryLabel = "";
   if (typeof apiProduct['category'] === 'string') {
     category = apiProduct['category'];
   } else if (apiProduct['category'] && typeof apiProduct['category'] === 'object') {
     category = (apiProduct['category']['slug'] as string) || "";
+    categoryLabel = (apiProduct['category']['name'] as string) || "";
   }
 
   if (!category) {
@@ -272,7 +251,7 @@ const mapApiProduct = (apiProduct: ApiProduct, categoryName: string = ""): Produ
     name,
     slug: slugify(`${name}-${unit}`),
     category,
-    categoryName: categoryName || (apiProduct['category_name'] as string) || "",
+    categoryName: categoryName || categoryLabel || (apiProduct['category_name'] as string) || "",
     description: ((apiProduct['description'] as string) || 
                  (apiProduct['long_description'] as string) || ""),
     price,
@@ -303,13 +282,13 @@ export const fetchProductsByCategory = async (
     let url = `${API_BASE_URL}/categories/${categorySlug}/products?page=${page}&page_size=${pageSize}`;
     console.log(`[API] Fetching products for category: ${url}`);
     
-    let response = await fetch(url);
+    let response = await fetch(url, { cache: "no-store" });
     
     // If that fails, try the products endpoint
     if (!response.ok) {
       url = `${API_BASE_URL}/products?category_slug=${categorySlug}&page=${page}&page_size=${pageSize}`;
       console.log(`[API] Trying alternate endpoint: ${url}`);
-      response = await fetch(url);
+      response = await fetch(url, { cache: "no-store" });
     }
     
     if (!response.ok) {
@@ -357,37 +336,39 @@ export const fetchProductsByCategory = async (
 export const fetchAllProducts = async (): Promise<Product[]> => {
   try {
     console.log("[API] Fetching all products...");
-    const categories = await getCategories();
-    console.log(`[API] Fetching products for ${categories.length} categories`);
+    const [categories, response] = await Promise.all([
+      getCategories(),
+      fetch(`${API_BASE_URL}/products`, { cache: "no-store" }),
+    ]);
 
-    const categoryResults = await Promise.all(
-      categories.map(async (category) => fetchProductsByCategory(category.slug)),
-    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
-    const allProducts: Product[] = categoryResults.flat();
+    const data = await response.json();
+    const productList = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.products)
+        ? data.products
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+    const categoryNames = new Map(categories.map((category) => [category.slug, category.name]));
+    const allProducts = productList.map((product: ApiProduct) => {
+      const productCategory = product['category'];
+      const categorySlug = typeof productCategory === "object" && productCategory
+        ? productCategory['slug']
+        : product['category_slug'];
+      const mapped = mapApiProduct(product, categoryNames.get(categorySlug) ?? "");
+      return mapped;
+    });
     console.log(`[API] Total products fetched: ${allProducts.length}`);
     return allProducts;
   } catch (error) {
     console.error("[API] Error fetching all products:", error);
-    return [];
+    throw error;
   }
 };
 
-// Cached products
-let cachedProducts: Product[] | null = null;
-let productsCacheTime = 0;
-const PRODUCT_CACHE_DURATION = 10 * 60 * 1000;
-
-export const getProducts = async (forceRefresh = false): Promise<Product[]> => {
-  const now = Date.now();
-  if (cachedProducts && !forceRefresh && now - productsCacheTime < PRODUCT_CACHE_DURATION) {
-    return cachedProducts;
-  }
-
-  cachedProducts = await fetchAllProducts();
-  productsCacheTime = now;
-  return cachedProducts;
-};
+export const getProducts = async (_forceRefresh = false): Promise<Product[]> => fetchAllProducts();
 
 // Product lookup functions
 export const productBySlug = async (slug: string) => {
@@ -440,18 +421,18 @@ export const getPopularProducts = async (): Promise<Product[]> => {
 
 export const getHomeBanners = async (): Promise<HomeBanner[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/catalog?page=1&page_size=10`);
+    const response = await fetch(`${API_BASE_URL}/banners`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
     const data = await response.json();
-    const banners = Array.isArray(data?.banners) ? data.banners : [];
+    const banners = Array.isArray(data) ? data : Array.isArray(data?.banners) ? data.banners : [];
 
     return banners
       .filter((banner: any) => banner && banner.image_url)
       .slice(0, 5)
       .map((banner: any) => ({
         id: banner.id ?? banner.slug ?? Math.random().toString(36).slice(2),
-        image_url: banner.image_url,
+        image_url: normalizeImageUrl(banner.image_url),
         target_url: banner.target_url ?? "",
         title: banner.title ?? banner.name ?? "Featured",
         text: banner.text ?? "Fresh picks for your pantry",
@@ -463,67 +444,60 @@ export const getHomeBanners = async (): Promise<HomeBanner[]> => {
   }
 };
 
-export const getHomeSections = async () => {
-  try {
-    console.log("[HOME] Loading home sections...");
+export const fetchHomePage = async (categoryPage = 1): Promise<HomePage> => {
+  const response = await fetch(
+    `${API_BASE_URL}/home?category_page=${categoryPage}&category_limit=15&products_per_category=10`,
+    { cache: "no-store" },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
-    const [categories, products] = await Promise.all([getCategories(), getProducts()]);
-    console.log(`[HOME] Loaded ${categories.length} categories and ${products.length} products`);
+  const data = await response.json();
+  const categoryList = Array.isArray(data?.categories) ? data.categories : [];
+  const categories: Category[] = categoryList.map((item: ApiCategory) => mapApiCategory(item));
+  const categoryById = new Map<string, Category>(categories.map((category: Category) => [String(category.id), category]));
+  const sections = categories.map((category: Category, index: number) => {
+    const apiCategory = categoryList[index] ?? {};
+    const products = Array.isArray(apiCategory.products)
+      ? apiCategory.products.map((product: ApiProduct) => mapApiProduct(product, category.name))
+      : [];
+    return {
+      title: category.name,
+      slug: category.slug,
+      items: products,
+      productsCount: category.products_count ?? 0,
+    };
+  });
 
-    const byCategory = products.reduce<Record<string, Product[]>>((acc, product) => {
-      const key = product.category || product.categoryName;
-      if (!key) return acc;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(product);
-      return acc;
-    }, {});
+  const popularProducts = Array.isArray(data?.popular_products)
+    ? data.popular_products.map((product: ApiProduct) => {
+        const categoryId = product['category'] && typeof product['category'] === "object"
+          ? String(product['category']['id'] ?? "")
+          : "";
+        return mapApiProduct(product, categoryById.get(categoryId)?.name ?? "");
+      })
+    : [];
 
-    const popularProducts = products
-      .slice()
-      .sort((a, b) => b.reviewCount - a.reviewCount)
-      .slice(0, 12);
-
-    const sections = [
-      { title: "Popular Products", slug: "", items: popularProducts },
-      ...categories.map((cat) => ({
-        title: cat.name,
-        slug: cat.slug,
-        items: byCategory[cat.slug] ?? [],
-      })),
-    ];
-
-    console.log(`[HOME] Total sections created: ${sections.length}`);
-    sections.forEach((s, i) => console.log(`[HOME] Section ${i}: ${s.title} (${s.items.length} items)`));
-
-    return sections;
-  } catch (error) {
-    console.error("[HOME] Error loading sections:", error);
-    return [];
-  }
+  return {
+    popularProducts,
+    categories,
+    sections,
+    hasMoreCategories: data?.has_more_categories === true,
+    nextCategoryPage: typeof data?.next_category_page === "number" ? data.next_category_page : null,
+  };
 };
 
-// Legacy exports for backward compatibility (sync versions with static fallback)
-// These will use cached data if available
-let staticProducts: Product[] = [];
-let staticCategories: Category[] = [];
+export const getHomeSections = async () => {
+  const page = await fetchHomePage(1);
+  return [{ title: "Popular Products", slug: "", items: page.popularProducts }, ...page.sections];
+};
 
+// Legacy exports retained for callers that still import the old synchronous API.
 export const products: Product[] = [];
 export const categories: Category[] = [];
 
-// Initialize static data on module load
-getProducts().then((p) => {
-  staticProducts = p;
-  Object.assign(products, p);
-});
-getCategories().then((c) => {
-  staticCategories = c;
-  Object.assign(categories, c);
-});
-
-// Sync versions for backward compatibility (use cached data)
-export const productBySlugSync = (slug: string) => staticProducts.find((p) => p.slug === slug);
-export const productByIdSync = (id: string) => staticProducts.find((p) => String(p.id) === String(id));
-export const productsByCategorySync = (slug: string) => staticProducts.filter((p) => p.category === slug);
+export const productBySlugSync = (_slug: string) => undefined;
+export const productByIdSync = (_id: string) => undefined;
+export const productsByCategorySync = (_slug: string) => [] as Product[];
 
 export const popularProducts: Product[] = [];
 export const homeSections: any[] = [];

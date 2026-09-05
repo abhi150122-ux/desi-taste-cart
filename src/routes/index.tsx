@@ -6,8 +6,7 @@ import { HeroSlider } from "@/components/hero-slider";
 import { PromoSlider } from "@/components/promo-slider";
 import { CategorySlider } from "@/components/category-slider";
 import { ProductSlider } from "@/components/product-slider";
-import { getHomeSections, productById, type Product } from "@/lib/catalog";
-import { useShop } from "@/context/shop";
+import { fetchHomePage, type Category, type HomeSection } from "@/lib/catalog";
 import { PageLoader } from "@/components/page-loader";
 
 export const Route = createFileRoute("/")({
@@ -39,48 +38,73 @@ const usps = [
 ];
 
 function Index() {
-  const { recentlyViewed } = useShop();
-  const [homeSections, setHomeSections] = useState<any[]>([]);
-  const [recent, setRecent] = useState<Product[]>([]);
+  const [homeSections, setHomeSections] = useState<HomeSection[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [nextCategoryPage, setNextCategoryPage] = useState<number | null>(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const loadSections = async () => {
       try {
         setIsLoading(true);
+        setLoadError(false);
         console.log("[HOME] Loading home sections...");
         
-        const sections = await getHomeSections();
-        console.log("[HOME] Loaded sections:", sections);
-        setHomeSections(sections);
-        
-        // Load recently viewed products
-        const recentProducts: Product[] = [];
-        for (const id of recentlyViewed) {
-          const product = await productById(id);
-          if (product) recentProducts.push(product);
-        }
-        setRecent(recentProducts);
-        
+        const page = await fetchHomePage(1);
+        setCategories(page.categories);
+        setHomeSections([
+          { title: "Popular Products", slug: "", items: page.popularProducts, productsCount: page.popularProducts.length },
+          ...page.sections,
+        ]);
+        setNextCategoryPage(page.nextCategoryPage);
         setIsLoading(false);
       } catch (error) {
         console.error("[HOME] Error loading sections:", error);
+        setLoadError(true);
         setIsLoading(false);
       }
     };
     
     loadSections();
-  }, [recentlyViewed]);
+  }, []);
+
+  const loadMoreCategories = async () => {
+    if (!nextCategoryPage || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const page = await fetchHomePage(nextCategoryPage);
+      setCategories((current) => [...current, ...page.categories]);
+      setHomeSections((current) => [...current, ...page.sections]);
+      setNextCategoryPage(page.nextCategoryPage);
+    } catch (error) {
+      console.error("[HOME] Error loading more categories:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   return (
     <SiteLayout>
       <Container className="pt-4">
         <HeroSlider />
-        <PromoSlider />
-        <CategorySlider />
+        <PromoSlider categories={categories} />
+        <CategorySlider
+          categories={categories}
+          onLoadMore={loadMoreCategories}
+          hasMore={Boolean(nextCategoryPage) && !isLoadingMore}
+        />
 
         {isLoading ? (
           <PageLoader label="Loading products..." />
+        ) : loadError ? (
+          <div className="py-10 text-center">
+            <p className="text-muted-foreground">Products could not be loaded.</p>
+            <button type="button" className="mt-3 text-sm font-semibold text-primary" onClick={() => window.location.reload()}>
+              Try again
+            </button>
+          </div>
         ) : homeSections.length > 0 ? (
           homeSections.map((section) => (
             <ProductSlider
@@ -95,8 +119,6 @@ function Index() {
             <p className="text-muted-foreground">No products available</p>
           </div>
         )}
-
-        {recent.length > 0 && <ProductSlider title="Recently Viewed" products={recent} />}
 
         <section className="my-10 rounded-3xl border border-accent/25 bg-card p-6 sm:p-10">
           <h2 className="text-center text-2xl font-bold sm:text-3xl">Why Jain Desi and Pure?</h2>

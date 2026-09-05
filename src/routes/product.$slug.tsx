@@ -4,7 +4,7 @@ import { Heart, Minus, Plus, ShieldCheck, Star, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { ProductSlider } from "@/components/product-slider";
-import { productBySlug, productsByCategory, sampleReviews, productByIdSync, type Product } from "@/lib/catalog";
+import { productBySlug, productsByCategory, sampleReviews, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 import { useShop } from "@/context/shop";
 import { PageLoader } from "@/components/page-loader";
