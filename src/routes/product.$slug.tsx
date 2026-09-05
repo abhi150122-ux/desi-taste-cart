@@ -4,7 +4,7 @@ import { Heart, Minus, Plus, ShieldCheck, Star, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { ProductSlider } from "@/components/product-slider";
-import { productById, productBySlug, productsByCategory, sampleReviews, type Product } from "@/lib/catalog";
+import { productBySlug, productsByCategory, type Product } from "@/lib/catalog";
 import { inr } from "@/lib/format";
 import { useShop } from "@/context/shop";
 import { PageLoader } from "@/components/page-loader";
@@ -48,7 +48,7 @@ function ProductPage() {
   const [related, setRelated] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-  const { addToCart, qtyOf, setQty, toggleWishlist, inWishlist, markViewed, recentlyViewed } = useShop();
+  const { addToCart, qtyOf, setQty, toggleWishlist, inWishlist, markViewed } = useShop();
   const [qty, setLocalQty] = useState(1);
 
   useEffect(() => {
@@ -96,10 +96,6 @@ function ProductPage() {
   }
 
   const gallery = [product.image, product.image, product.image];
-  const recent = recentlyViewed
-    .filter((id) => id !== product.id)
-    .map((id) => productById(id))
-    .filter((p) => p !== undefined);
 
   return (
     <SiteLayout>
@@ -264,34 +260,7 @@ function ProductPage() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-2xl border bg-card p-6">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-            <h2 className="text-lg font-bold">Customer Reviews</h2>
-            <Link to="/search" search={{ q: product.categoryName }} className="text-xs font-semibold text-primary">
-              Similar products
-            </Link>
-          </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {sampleReviews.map((r) => (
-              <div key={r.name} className="rounded-xl bg-secondary/60 p-4">
-                <div className="flex items-center gap-2">
-                  <span className="grid size-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                    {r.name.charAt(0)}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">{r.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{r.date}</p>
-                  </div>
-                </div>
-                <p className="mt-2 text-sm text-accent">{"★".repeat(r.rating)}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{r.text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
         <ProductSlider title="Related Products" products={related} viewAllSlug={product.category} />
-        {recent.length > 0 && <ProductSlider title="Recently Viewed" products={recent} />}
       </Container>
     </SiteLayout>
   );

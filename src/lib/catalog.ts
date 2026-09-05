@@ -563,35 +563,3 @@ export const megaMenu = [
   },
 ];
 
-export const sampleReviews = [
-  {
-    name: "Ritu Sharma",
-    rating: 5,
-    date: "12 Jul 2026",
-    text: "Very good quality oil. Packaging was excellent and delivery was quick.",
-  },
-  {
-    name: "Mahesh Jain",
-    rating: 5,
-    date: "04 Jul 2026",
-    text: "Tastes exactly like the products we used to get from our village mill. Highly recommended.",
-  },
-  {
-    name: "Anita Verma",
-    rating: 4,
-    date: "28 Jun 2026",
-    text: "Genuinely pure and fresh. Slightly pricey but worth it for the family.",
-  },
-  {
-    name: "Deepak Agarwal",
-    rating: 5,
-    date: "19 Jun 2026",
-    text: "Ordered three times now. Consistent quality every single time.",
-  },
-  {
-    name: "Sneha Kothari",
-    rating: 4,
-    date: "02 Jun 2026",
-    text: "Loved the aroma. Sealed packing with no leakage at all.",
-  },
-];
