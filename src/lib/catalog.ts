@@ -200,10 +200,14 @@ const mapApiProduct = (apiProduct: ApiProduct, categoryName: string = ""): Produ
     (apiProduct['original_price'] as any) || 
     (apiProduct['list_price'] as any) || price
   );
-  const stock = Number(
-    (apiProduct['stock'] as any) || 
-    (apiProduct['quantity'] as any) || 
-    (apiProduct['inventory'] as any) || 0
+  const inventory = apiProduct['inventory'];
+  const inventoryStock = inventory && typeof inventory === "object"
+    ? Number(inventory['stock_quantity'] ?? 0) - Number(inventory['reserved_quantity'] ?? 0)
+    : 0;
+  const stockValue = apiProduct['available_stock'] ?? apiProduct['stock'] ?? apiProduct['quantity'];
+  const stock = Math.max(
+    0,
+    Number.isFinite(Number(stockValue)) ? Number(stockValue) : inventoryStock,
   );
   const rating = Number(
     (apiProduct['rating'] as any) || 
