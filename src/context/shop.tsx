@@ -28,13 +28,13 @@ export type CartLine = {
   productId: string;
   qty: number;
   unitPrice?: number;
-  product?: {
+    product?: {
     name?: string;
     slug?: string;
     unit?: string;
     price?: number;
     image?: string;
-  };
+  } | undefined;
 };
 export type Address = {
   id: string;
@@ -256,7 +256,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
               image: normalizeImageUrl(item.product.image_url),
             } : undefined,
           }))
-          .filter((line) => Boolean(line.productId) && Number(line.qty) > 0),
+          .filter((line: CartLine) => Boolean(line.productId) && Number(line.qty) > 0),
       }));
     } catch (error) {
       console.warn("Customer sync failed:", error);
@@ -526,8 +526,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         eta: "Tomorrow, 10 AM - 1 PM",
       });
 
+      await apiClearCart(String(state.user.id));
       await hydrateCustomerData(state.user.id);
-      patch((s) => ({ ...s, orders: [order, ...s.orders], cart: [], coupon: null }));
+      patch((s) => ({ ...s, cart: [], coupon: null }));
       return order;
     },
     markViewed: (id) =>

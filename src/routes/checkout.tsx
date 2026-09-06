@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { useShop, type Address } from "@/context/shop";
+import { apiCreateRazorpayOrder, apiVerifyPayment } from "@/lib/api";
 import { inr } from "@/lib/format";
 
 export const Route = createFileRoute("/checkout")({
@@ -31,8 +32,55 @@ const empty = {
   pincode: "",
 };
 
+type RazorpayHandlerResponse = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill: { name: string; contact: string };
+  handler: (response: RazorpayHandlerResponse) => void;
+  modal: { ondismiss: () => void };
+};
+
+type RazorpayInstance = { open: () => void };
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+let razorpayScript: Promise<void> | null = null;
+
+const loadRazorpay = () => {
+  if (window.Razorpay) return Promise.resolve();
+  if (razorpayScript) return razorpayScript;
+
+  razorpayScript = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      razorpayScript = null;
+      reject(new Error("Unable to load Razorpay checkout."));
+    };
+    document.head.appendChild(script);
+  });
+
+  return razorpayScript;
+};
+
 function CheckoutPage() {
-  const { cartItems, totals, addresses, addAddress, placeOrder } = useShop();
+  const { user, cartItems, totals, addresses, addAddress, placeOrder } = useShop();
   const navigate = useNavigate();
   const [selected, setSelected] = useState(addresses[0]?.id ?? "");
   const [showForm, setShowForm] = useState(addresses.length === 0);
@@ -97,13 +145,52 @@ function CheckoutPage() {
 
     try {
       setPlacing(true);
-      const order = await placeOrder(payment, address);
-      toast.success("Payment successful");
-      navigate({ to: "/order/$id", params: { id: order.id } });
+
+      const finishOrder = async () => {
+        const order = await placeOrder(payment, address);
+        toast.success(payment === "Cash on Delivery" ? "Order placed" : "Payment successful");
+        navigate({ to: "/order/$id", params: { id: order.id } });
+      };
+
+      if (payment === "Cash on Delivery") {
+        await finishOrder();
+        return;
+      }
+
+      const razorpayOrder = await apiCreateRazorpayOrder({
+        customer_id: user?.id,
+        amount: Math.round(totals.total * 100),
+        order_number: `JDP-${Date.now()}`,
+        items: cartItems.map(({ product, qty }) => ({ product_id: product.id, quantity: qty })),
+      });
+
+      await loadRazorpay();
+      if (!window.Razorpay) throw new Error("Razorpay checkout is unavailable.");
+
+      if (!user?.id) throw new Error("Please log in again before paying.");
+
+      new window.Razorpay({
+        key: razorpayOrder.key_id,
+        amount: Math.round(totals.total * 100),
+        currency: "INR",
+        name: "Jain Desi and Pure",
+        description: "Grocery order payment",
+        order_id: razorpayOrder.order_id,
+        prefill: { name: address.fullName, contact: address.mobile },
+        handler: async (response) => {
+          try {
+            await apiVerifyPayment({ customer_id: user.id, ...response });
+            await finishOrder();
+          } catch (error: any) {
+            setPlacing(false);
+            toast.error(error?.message || "Payment verification failed");
+          }
+        },
+        modal: { ondismiss: () => setPlacing(false) },
+      }).open();
     } catch (error: any) {
-      toast.error(error?.message || "Order placement failed");
-    } finally {
       setPlacing(false);
+      toast.error(error?.message || "Order placement failed");
     }
   };
 

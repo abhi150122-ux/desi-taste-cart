@@ -11,6 +11,15 @@ const writeToken = (token: string | null) => {
   else localStorage.removeItem("jdp-auth-token");
 };
 
+type ApiRecord = {
+  id?: string | number;
+  order_number?: string | number;
+  addresses?: ApiRecord[];
+  items?: ApiRecord[];
+  quantity?: number;
+  [key: string]: any;
+};
+
 const getJson = async (response: Response) => {
   const text = await response.text();
   if (!text) return null;
@@ -103,9 +112,9 @@ export const apiResetPassword = (payload: Record<string, unknown>) =>
     body: JSON.stringify(payload),
   });
 
-export const apiCustomerProfile = (customerId: string) => apiRequest(`/customers/${customerId}`);
+export const apiCustomerProfile = (customerId: string) => apiRequest<ApiRecord>(`/customers/${customerId}`);
 
-export const apiGetCustomerAddresses = (customerId: string) => apiRequest(`/customers/${customerId}/addresses`);
+export const apiGetCustomerAddresses = (customerId: string) => apiRequest<ApiRecord[]>(`/customers/${customerId}/addresses`);
 
 export const apiGetCustomerNotifications = (customerId: string) => apiRequest(`/customers/${customerId}/notifications`);
 
@@ -124,7 +133,7 @@ export const apiRegisterPushToken = (payload: Record<string, unknown>) =>
     body: JSON.stringify(payload),
   });
 
-export const apiGetCustomerCart = (customerId: string) => apiRequest(`/customers/${customerId}/cart`);
+export const apiGetCustomerCart = (customerId: string) => apiRequest<ApiRecord>(`/customers/${customerId}/cart`);
 
 export const apiAddCartItem = (customerId: string, payload: Record<string, unknown>) =>
   apiRequest(`/customers/${customerId}/cart/items`, {
@@ -144,7 +153,7 @@ export const apiDeleteCartItem = (customerId: string, itemId: string | number) =
 export const apiClearCart = (customerId: string) => apiRequest(`/customers/${customerId}/cart`, { method: "DELETE" });
 
 export const apiCreateCustomerAddress = (customerId: string, payload: Record<string, unknown>) =>
-  apiRequest(`/customers/${customerId}/addresses`, {
+  apiRequest<ApiRecord>(`/customers/${customerId}/addresses`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -152,19 +161,19 @@ export const apiCreateCustomerAddress = (customerId: string, payload: Record<str
 export const apiGetCustomerOrders = (customerId: string) => apiRequest(`/customers/${customerId}/orders`);
 
 export const apiCreateOrder = (payload: Record<string, unknown>) =>
-  apiRequest(`/orders`, {
+  apiRequest<ApiRecord>(`/orders`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
 export const apiCreateRazorpayOrder = (payload: Record<string, unknown>) =>
-  apiRequest(`/payment/razorpay`, {
+  apiRequest<{ order_id: string; key_id: string }>(`/payment/razorpay`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
 export const apiVerifyPayment = (payload: Record<string, unknown>) =>
-  apiRequest(`/payment/verify`, {
+  apiRequest<{ success: boolean; message?: string }>(`/payment/verify`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
