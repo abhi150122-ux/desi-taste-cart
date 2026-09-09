@@ -179,7 +179,7 @@ export const apiVerifyPayment = (payload: Record<string, unknown>) =>
   });
 
 export const apiGetPaymentSettings = () =>
-  apiRequest<{ cod_enabled?: boolean }>("/home?category_limit=1&products_per_category=1");
+  apiRequest<{ cod_enabled: boolean }>("/payment-settings");
 
 export type DeliveryFeeResponse = {
   subtotal: number;
