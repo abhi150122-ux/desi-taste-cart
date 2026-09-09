@@ -94,15 +94,26 @@ function CheckoutPage() {
   useEffect(() => {
     apiGetPaymentSettings()
       .then((settings) => {
-        const enabled = settings.cod_enabled !== false;
+        const enabled = settings.cod_enabled === true;
         setCodEnabled(enabled);
         setPayment((current) => !enabled && current === "Cash on Delivery" ? payments[1]! : current);
       })
       .catch((error) => {
         console.error("Failed to load payment settings:", error);
-        setCodEnabled(true);
+        setCodEnabled(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (addresses.length === 0) {
+      setSelected("");
+      setShowForm(true);
+      return;
+    }
+
+    setSelected((current) => addresses.some((address) => address.id === current) ? current : addresses[0].id);
+    setShowForm(false);
+  }, [addresses]);
 
   if (cartItems.length === 0) {
     return (
