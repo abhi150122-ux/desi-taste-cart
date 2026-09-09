@@ -85,20 +85,18 @@ function CheckoutPage() {
   const [selected, setSelected] = useState(addresses[0]?.id ?? "");
   const [showForm, setShowForm] = useState(addresses.length === 0);
   const [form, setForm] = useState(empty);
-  const [payment, setPayment] = useState(payments[0]!);
+  const [payment, setPayment] = useState(payments[1]!);
   const [codEnabled, setCodEnabled] = useState<boolean | null>(null);
   const [savingAddress, setSavingAddress] = useState(false);
   const [placing, setPlacing] = useState(false);
-  const availablePayments = codEnabled === false ? payments.filter((method) => method !== "Cash on Delivery") : payments;
+  const availablePayments = codEnabled === true ? payments : payments.filter((method) => method !== "Cash on Delivery");
 
   useEffect(() => {
     apiGetPaymentSettings()
       .then((settings) => {
         const enabled = settings.cod_enabled !== false;
         setCodEnabled(enabled);
-        if (!enabled) {
-          setPayment((current) => current === "Cash on Delivery" ? payments[1]! : current);
-        }
+        setPayment((current) => !enabled && current === "Cash on Delivery" ? payments[1]! : current);
       })
       .catch((error) => {
         console.error("Failed to load payment settings:", error);
