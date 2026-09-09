@@ -268,7 +268,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem(KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<ShopState>;
-        setState({ ...initialState, ...parsed });
+        const hasValidUser = Boolean(parsed.user && parsed.user.id !== undefined && parsed.user.id !== null);
+        if (parsed.user && !hasValidUser) setAuthToken(null);
+        setState({ ...initialState, ...parsed, user: hasValidUser ? parsed.user! : null });
       }
     } catch {
       /* ignore corrupt storage */
