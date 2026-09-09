@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Leaf } from "lucide-react";
+import { Eye, EyeOff, Leaf } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout, Container } from "@/components/site-layout";
 import { useShop } from "@/context/shop";
@@ -29,6 +29,8 @@ function LoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetOtp, setResetOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
@@ -160,13 +162,23 @@ function LoginPage() {
                 </label>
                 <label className="block text-xs font-medium">
                   Password
-                  <input
-                    type="password"
-                    value={password}
-                    maxLength={64}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="mt-1 w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-                  />
+                  <span className="relative mt-1 block">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      maxLength={64}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-xl border bg-background px-3 py-2.5 pr-10 text-sm outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </span>
                 </label>
                 <button type="submit" disabled={loginLoading} className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60">
                   {loginLoading ? "Logging in..." : "Login"}
@@ -238,13 +250,23 @@ function LoginPage() {
                 <>
                   <label className="block text-xs font-medium">
                     New Password
-                    <input
-                      type="password"
-                      value={newPassword}
-                      maxLength={64}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="mt-1 w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-                    />
+                    <span className="relative mt-1 block">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        maxLength={64}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full rounded-xl border bg-background px-3 py-2.5 pr-10 text-sm outline-none focus:border-primary"
+                      />
+                      <button
+                        type="button"
+                        aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+                        onClick={() => setShowNewPassword((visible) => !visible)}
+                        className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted-foreground hover:text-foreground"
+                      >
+                        {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    </span>
                   </label>
                   <button
                     type="button"

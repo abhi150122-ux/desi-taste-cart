@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout, Container } from "@/components/site-layout";
 import { useShop } from "@/context/shop";
@@ -27,6 +28,8 @@ function SignupPage() {
   const [signingUp, setSigningUp] = useState(false);
   const [verificationStep, setVerificationStep] = useState(false);
   const [otp, setOtp] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,13 +162,25 @@ function SignupPage() {
               ).map(([key, label, type]) => (
                 <label key={key} className="block text-xs font-medium">
                   {label}
-                  <input
-                    type={type}
-                    value={form[key]}
-                    maxLength={80}
-                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                    className="mt-1 w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-                  />
+                  <span className="relative mt-1 block">
+                    <input
+                      type={key === "password" ? (showPassword ? "text" : type) : showConfirmPassword ? "text" : type}
+                      value={form[key]}
+                      maxLength={80}
+                      onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                      className="w-full rounded-xl border bg-background px-3 py-2.5 pr-10 text-sm outline-none focus:border-primary"
+                    />
+                    {key !== "name" && key !== "mobile" && key !== "email" && (
+                      <button
+                        type="button"
+                        aria-label={(key === "password" ? showPassword : showConfirmPassword) ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+                        onClick={() => key === "password" ? setShowPassword((visible) => !visible) : setShowConfirmPassword((visible) => !visible)}
+                        className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted-foreground hover:text-foreground"
+                      >
+                        {(key === "password" ? showPassword : showConfirmPassword) ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    )}
+                  </span>
                 </label>
               ))}
 

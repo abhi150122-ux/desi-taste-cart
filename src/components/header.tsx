@@ -154,6 +154,12 @@ export function Header() {
         </div>
 
         <nav className="hidden items-center gap-6 border-t border-accent/20 py-2.5 text-sm font-medium md:flex">
+          <Link
+            to="/"
+            className={`border-b-2 py-1.5 transition-colors ${pathname === "/" ? "border-primary text-primary" : "border-transparent hover:border-primary/50 hover:text-primary"}`}
+          >
+            Home
+          </Link>
           {topCategories.map((category) => {
             const categoryPath = `/category/${category.slug}`;
             const isActive = pathname === categoryPath || pathname.startsWith(`${categoryPath}/`);
@@ -179,6 +185,13 @@ export function Header() {
       {menuOpen && (
         <div className="max-h-[70vh] overflow-y-auto border-t bg-card p-4 md:hidden">
           <div className="grid grid-cols-2 gap-2">
+            <Link
+              to="/"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-xl border px-3 py-2 text-sm"
+            >
+              Home
+            </Link>
             {categories.map((c) => (
               <Link
                 key={c.slug}
