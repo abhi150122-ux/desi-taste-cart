@@ -16,7 +16,7 @@ export function Footer() {
     <footer className="mt-12 border-t border-accent/25 bg-secondary/60">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <p className="font-display text-xl font-bold text-primary">Jain Desi and Pure</p>
+          <p className="font-display text-xl font-bold text-primary">Jain  Desi and Pure</p>
           <p className="mt-1 text-sm text-accent-foreground/80 italic">Pure Desi Taste, Naturally Better</p>
           <p className="mt-4 text-sm text-muted-foreground">
             Cold pressed oils, desi ghee, unpolished dals, stone ground attas and traditional Indian foods —
