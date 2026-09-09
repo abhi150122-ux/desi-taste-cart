@@ -85,7 +85,7 @@ function CategoriesPage() {
               key={c.slug}
               to="/category/$slug"
               params={{ slug: c.slug }}
-              className="group rounded-2xl border border-accent/25 bg-card p-3 text-center transition-all hover:-translate-y-1 hover:border-primary hover:shadow-[var(--shadow-lift)]"
+              className="group flex h-full flex-col rounded-2xl border border-accent/25 bg-card p-3 text-center transition-all hover:-translate-y-1 hover:border-primary hover:shadow-[var(--shadow-lift)]"
             >
               <RetryImage
                 src={c.image}
@@ -95,8 +95,8 @@ function CategoriesPage() {
                 loading="lazy"
                 className="aspect-square w-full rounded-xl object-cover"
               />
-              <p className="mt-2 text-xs font-semibold">{c.name}</p>
-              <p className="text-[11px] text-muted-foreground">{c.products_count ?? 0} items</p>
+              <p className="mt-2 min-h-8 text-xs font-semibold">{c.name}</p>
+              <p className="mt-auto text-[11px] text-muted-foreground">{c.products_count ?? 0} items</p>
             </Link>
           ))}
         </div>

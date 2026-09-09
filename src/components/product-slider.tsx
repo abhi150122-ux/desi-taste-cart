@@ -53,7 +53,7 @@ export function ProductSlider({
 
       <div ref={railRef} className="rail -mx-4 gap-3 px-4 pb-2 sm:mx-0 sm:gap-4 sm:px-0">
         {products.map((p) => (
-          <ProductCard key={p.id} product={p} className="w-[46vw] shrink-0 sm:w-[210px] lg:w-[192px]" />
+          <ProductCard key={p.id} product={p} className="h-full w-[46vw] shrink-0 sm:w-[210px] lg:w-[192px]" />
         ))}
       </div>
     </section>
