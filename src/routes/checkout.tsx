@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { SiteLayout, Container, Breadcrumbs } from "@/components/site-layout";
 import { useShop, type Address } from "@/context/shop";
-import { apiCreateRazorpayOrder, apiVerifyPayment } from "@/lib/api";
+import { apiCreateRazorpayOrder, apiGetPaymentSettings, apiVerifyPayment } from "@/lib/api";
 import { inr } from "@/lib/format";
 
 export const Route = createFileRoute("/checkout")({
@@ -86,8 +86,25 @@ function CheckoutPage() {
   const [showForm, setShowForm] = useState(addresses.length === 0);
   const [form, setForm] = useState(empty);
   const [payment, setPayment] = useState(payments[0]!);
+  const [codEnabled, setCodEnabled] = useState<boolean | null>(null);
   const [savingAddress, setSavingAddress] = useState(false);
   const [placing, setPlacing] = useState(false);
+  const availablePayments = codEnabled === false ? payments.filter((method) => method !== "Cash on Delivery") : payments;
+
+  useEffect(() => {
+    apiGetPaymentSettings()
+      .then((settings) => {
+        const enabled = settings.cod_enabled !== false;
+        setCodEnabled(enabled);
+        if (!enabled) {
+          setPayment((current) => current === "Cash on Delivery" ? payments[1]! : current);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load payment settings:", error);
+        setCodEnabled(true);
+      });
+  }, []);
 
   if (cartItems.length === 0) {
     return (
@@ -137,6 +154,11 @@ function CheckoutPage() {
   };
 
   const submit = async () => {
+    if (payment === "Cash on Delivery" && codEnabled === false) {
+      toast.error("Cash on Delivery is currently unavailable");
+      return;
+    }
+
     const address: Address | undefined = addresses.find((a) => a.id === selected);
     if (!address) {
       toast.error("Please select a delivery address");
@@ -286,7 +308,7 @@ function CheckoutPage() {
             <section className="rounded-2xl border bg-card p-5">
               <h2 className="text-base font-bold">Payment Method</h2>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {payments.map((p) => (
+                {availablePayments.map((p) => (
                   <label
                     key={p}
                     className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm ${payment === p ? "border-primary bg-primary-soft/50 font-semibold" : ""}`}
